@@ -1,0 +1,16 @@
+services:
+  aninest-mcp:
+    build: .
+    image: aninest-mcp:local
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      ANINEST_MCP_TRANSPORT: streamable-http
+      ANINEST_MCP_HOST: 0.0.0.0
+      ANINEST_BOORU_URL: https://safebooru.org/index.php
+      # Point these at the host machine when the emulator of the local stack runs there:
+      # ANINEST_ARENA_URL: http://host.docker.internal:6191
+      # ANINEST_MEMORY_DB: /data/memory.db
+    # volumes:
+    #   - ./data:/data:ro
+    restart: unless-stopped

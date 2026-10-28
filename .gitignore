@@ -1,0 +1,32 @@
+# byte-code / caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# build artefacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# runtime / local state (never commit)
+*.db
+*.db-wal
+*.db-shm
+*.log
+*.out.txt
+.env
+.env.*
+!.env.example
+config.local.*
+data/local/
+eval/report.json
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

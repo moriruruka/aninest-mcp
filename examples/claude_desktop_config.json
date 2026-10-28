@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "aninest": {
+      "command": "aninest-mcp",
+      "env": {
+        "ANINEST_BOORU_URL": "https://safebooru.org/index.php",
+        "ANINEST_HTTP_TIMEOUT": "15",
+        "ANINEST_MEMORY_DB": "C:/Users/you/.aninest/memory.db",
+        "ANINEST_ARENA_URL": "http://127.0.0.1:6191"
+      }
+    }
+  }
+}
