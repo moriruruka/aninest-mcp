@@ -25,8 +25,16 @@
 - Dockerfile（非 root、HEALTHCHECK，基础镜像可用 `--build-arg PYTHON_IMAGE=` 覆盖）与 docker-compose。
 - 握手自报版本：`initialize` 的 `serverInfo.version` 由 `src/aninest/version.py` 提供（0.1.0），
   不再回落到 MCP SDK 的版本号。
-- 文档：README、`docs/DECISIONS.md`（设计取舍）、`docs/PRIVACY.md`（开源自查清单）、
-  `docs/THREAT_MODEL.md`（资产/信任边界/出站能力/已知缺口）、CONTRIBUTING。
+- 文档：README、`docs/DECISIONS.md`（设计取舍）、`docs/ARCHITECTURE.md`（代码结构与改动指引）、
+  `docs/PRIVACY.md`（数据边界与自查命令）、`docs/THREAT_MODEL.md`（资产/信任边界/出站能力/已知缺口）、
+  `docs/NAMING.md`（命名由来）、CONTRIBUTING。
+
+### Fixed
+
+- CI 在 Windows 运行器上因控制台编码（cp1252）打印中文用例崩溃：`eval/run_eval.py` 与 `tests/context.py`
+  现在显式把 stdout/stderr 切到 UTF-8，workflow 级也设了 `PYTHONIOENCODING=utf-8`。
+- CI 的 Docker 冒烟步骤原先用 heredoc 喂 stdin，未加 `-i` 时容器读不到脚本、等于空跑；改为
+  `--entrypoint python -c "…"`，断言失败会真正让任务变红。
 
 ### Known limitations
 

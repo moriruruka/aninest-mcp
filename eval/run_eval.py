@@ -28,6 +28,16 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "src"))
 
+# Case queries are Chinese; the default console encoding on Windows (cp1252) would
+# make the report crash with UnicodeEncodeError when stdout is a pipe (CI).
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if _reconfigure is not None:
+        try:
+            _reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # pragma: no cover - unusual streams
+            pass
+
 from aninest.tagging import parse_request  # noqa: E402
 
 

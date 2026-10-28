@@ -1,4 +1,4 @@
-# AniNest · aninest-mcp
+﻿# AniNest · aninest-mcp
 
 [![CI](https://github.com/moriruruka/aninest-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/moriruruka/aninest-mcp/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
@@ -27,11 +27,12 @@
 - [配置项](#配置项)
 - [可靠性与安全设计](#可靠性与安全设计)
 - [评测结果](#评测结果)
-- [技术点对照（JD 关键词 → 代码位置）](#技术点对照jd-关键词--代码位置)
+- [实现对照（能力 → 代码位置）](#实现对照能力--代码位置)
 - [开发](#开发)
-- [开源前的隐私自查](docs/PRIVACY.md)
+- [数据边界与隐私](docs/PRIVACY.md)
 - [设计取舍](docs/DECISIONS.md)
 - [威胁模型：它能动什么、谁能让它动](docs/THREAT_MODEL.md)
+- [代码结构与改动指引](docs/ARCHITECTURE.md)
 
 ---
 
@@ -212,7 +213,7 @@ python scripts/mcp_smoke.py --call art_search --args '{"query":"初音未来 泳
 | `arena_lookup` | 本机服务的 `POST /search` | `python scripts/fake_arena.py --port 6192`（同契约假数据） |
 | `service_health` | 无 | 五个端口全 down 也是合法结果 |
 
-两分钟复现（不需要任何客户端、不需要我的机器）：
+两分钟复现（不需要任何客户端、也不需要作者本机环境）：
 
 ```bash
 # 1) 记忆工具：造一个示例库再查
@@ -243,8 +244,12 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 
 > 说明：联网成功率依赖图站可达性；离线部分确定可复现，CI 只跑离线。
 
-## 技术点对照
+## 实现对照（能力 → 代码位置）
 
+写这一节是为了让读者能在 30 秒内定位到对应实现，而不是只看关键词。
+
+| 能力 / 关键词 | 在本仓库的落点 |
+| --- | --- |
 | Python 工程化 / 包管理 | `pyproject.toml`（hatchling、可选依赖、console script）、`src/` 布局、`pip install -e ".[dev]"` |
 | 代码质量门禁 | `ruff`（E/F/I/UP/B）、`unittest`、CI 矩阵（Linux+Windows × 3.10/3.12/3.13） |
 | MCP / 工具调用（Tool Use） | `src/aninest/server.py`（FastMCP 注册 5 个工具 + resource + prompt） |
@@ -257,7 +262,7 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 | 容器化 | `Dockerfile`（非 root、HEALTHCHECK）、`docker-compose.yml`、`.dockerignore` |
 | CI/CD | `.github/workflows/ci.yml`（lint → test → offline eval → docker build + smoke） |
 | 测试设计 | `tests/` 5 个模块 55 例，纯函数优先；`tests/context.py` 让测试无需安装即可跑 |
-| 文档 | `README.md`、`docs/DECISIONS.md`（ADR）、`docs/PRIVACY.md`（开源自查）、`docs/THREAT_MODEL.md`、`CHANGELOG.md` |
+| 文档 | `README.md`、`docs/DECISIONS.md`（ADR）、`docs/ARCHITECTURE.md`（结构与改动指引）、`docs/PRIVACY.md`（数据边界）、`docs/THREAT_MODEL.md`、`CHANGELOG.md` |
 | 安全意识 | 只放行 safe 分级、零凭证、只读数据库、`docs/PRIVACY.md` 的 5 条 grep 自查 |
 
 ## 开发

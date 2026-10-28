@@ -53,5 +53,5 @@ python eval/run_eval.py
 
 ## 敏感信息
 
-不要在 issue、PR、测试数据里粘贴真实账号、Cookie、QQ 号、本机绝对路径。
+不要在 issue、PR、测试数据里粘贴真实账号、Cookie、用户名、本机绝对路径。
 提交前看一眼 [docs/PRIVACY.md](docs/PRIVACY.md)。

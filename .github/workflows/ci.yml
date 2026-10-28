@@ -8,6 +8,13 @@ on:
 permissions:
   contents: read
 
+# Case queries and some docstrings are Chinese; without this, stdout on the Windows
+# runners is cp1252 and printing them raises UnicodeEncodeError.
+env:
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
 jobs:
   test:
     name: python ${{ matrix.python }} on ${{ matrix.os }}
@@ -48,11 +55,4 @@ jobs:
         run: docker build -t aninest-mcp:ci .
       - name: Smoke test (imports + tool registry)
         run: |
-          docker run --rm aninest-mcp:ci python - <<'PY'
-          import asyncio
-          from aninest.server import mcp
-          tools = asyncio.run(mcp.list_tools())
-          names = sorted(t.name for t in tools)
-          assert names == ["arena_lookup", "art_search", "memory_search", "memory_stats", "service_health"], names
-          print("tools:", names)
-          PY
+          docker run --rm --entrypoint python aninest-mcp:ci -c "import asyncio; from aninest.server import mcp; names = sorted(t.name for t in asyncio.run(mcp.list_tools())); assert names == ['arena_lookup', 'art_search', 'memory_search', 'memory_stats', 'service_health'], names; print('tools:', names)"
