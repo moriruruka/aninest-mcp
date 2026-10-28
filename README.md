@@ -243,12 +243,8 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 
 > 说明：联网成功率依赖图站可达性；离线部分确定可复现，CI 只跑离线。
 
-## 技术点对照（JD 关键词 → 代码位置）
+## 技术点对照
 
-写这一节是为了让 reviewer 能在 30 秒内定位到对应实现，而不是只看关键词。
-
-| JD 关键词 | 在本仓库的落点 |
-| --- | --- |
 | Python 工程化 / 包管理 | `pyproject.toml`（hatchling、可选依赖、console script）、`src/` 布局、`pip install -e ".[dev]"` |
 | 代码质量门禁 | `ruff`（E/F/I/UP/B）、`unittest`、CI 矩阵（Linux+Windows × 3.10/3.12/3.13） |
 | MCP / 工具调用（Tool Use） | `src/aninest/server.py`（FastMCP 注册 5 个工具 + resource + prompt） |
