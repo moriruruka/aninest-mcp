@@ -60,11 +60,11 @@ python -m unittest discover -s tests
 期望输出（数字会随用例增长）：
 
 ```text
-Ran 67 tests in 0.588s
+Ran 83 tests in 0.57s
 OK
 ```
 
-这 67 个用例全部只用 fixtures，不联网、不需要服务。它们覆盖：
+这 83 个用例里，绝大多数只用 fixtures，不联网、不需要服务。它们覆盖：
 
 - `test_tagging.py`：中文词 → tag 的别名表、黑名单、方向/尺寸/张数解析、负向 tag
 - `test_art_shape.py`：把图站返回的原始行规整成结果、分级归一（`s`/`safe`/`g`…）、降级阶梯

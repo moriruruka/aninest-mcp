@@ -34,7 +34,11 @@ def score(query_tokens: list[str], content: str, importance: int) -> float:
 
 def _connect(db_path: Path) -> sqlite3.Connection:
     if not db_path.exists():
-        raise FileNotFoundError(f"memory database not found: {db_path}")
+        raise FileNotFoundError(
+            f"memory database not found: {db_path}. "
+            "Point ANINEST_MEMORY_DB at an existing SQLite file, or create a sample "
+            "one with `python scripts/make_demo_db.py --out <path>`."
+        )
     uri = f"file:{db_path.as_posix()}?mode=ro"
     conn = sqlite3.connect(uri, uri=True, timeout=5)
     conn.row_factory = sqlite3.Row

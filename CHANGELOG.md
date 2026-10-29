@@ -2,6 +2,26 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+
+- 工具元数据补齐 MCP 规范里的可选字段：5 个工具现在都带 `title`（人类可读名）与
+  `annotations`（`readOnlyHint=true`、`destructiveHint=false`；`art_search`/`arena_lookup`
+  额外 `openWorldHint=true`），宿主可以据此免确认、或提示"会联网"。
+- `docs/COMPLIANCE.md`：逐项列出"已符合 / 有意不做 / 还能加固"，每条都给出可复验的证据与命令。
+- `tests/test_server_contract.py`：7 个契约用例，锁住工具清单、schema、title、annotations、
+  resource 与 prompt，防止后续改动悄悄丢掉这些字段。
+- README 增「只想要命令行：从 GitHub 直接装」——`pip install "git+https://github.com/moriruruka/aninest-mcp.git"`，
+  附 2026-10-29 在全新 venv 的实测记录（装出 0.2.0、握手协商 `2025-11-25`、5 个工具、`service_health` 5/5）。
+
+### Fixed
+
+- `config.py` 的默认 User-Agent 还写着 `aninest-mcp/0.1 (+https://github.com/)`（占位 URL、版本过期），
+  改为按 `version.py` 的版本号与真实仓库地址生成。
+- 记忆库文件不存在时，报错只说"not found"；现在同时给出下一步（设 `ANINEST_MEMORY_DB`
+  或跑 `scripts/make_demo_db.py`），新用户不必去翻源码。
+
 ## [0.2.0] - 2026-10-29
 
 ### Changed

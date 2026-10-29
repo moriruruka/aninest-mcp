@@ -16,10 +16,26 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
+from mcp.types import ToolAnnotations
 
 from .config import SETTINGS
 from .tools import arena, art, health, memory
 from .version import VERSION
+
+#: Every tool only reads: nothing writes user data, so hosts may auto-approve them.
+READ_ONLY = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
+)
+#: Same, but the result depends on outside systems (remote board, local browser service).
+READ_ONLY_OPEN = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=False,
+    openWorldHint=True,
+)
 
 INSTRUCTIONS = """\
 AniNest tool server. Five capabilities:
@@ -41,7 +57,7 @@ def _dump(payload: Any) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(title="Illustration search", annotations=READ_ONLY_OPEN)
 async def art_search(
     query: str,
     count: int = 1,
@@ -72,7 +88,7 @@ async def art_search(
     )
 
 
-@mcp.tool()
+@mcp.tool(title="Arena lineup lookup", annotations=READ_ONLY_OPEN)
 async def arena_lookup(def_ids: list[int], region: int = 1, limit: int = 3) -> str:
     """Look up defence teams for a lineup via the local arena browser service.
 
@@ -84,7 +100,7 @@ async def arena_lookup(def_ids: list[int], region: int = 1, limit: int = 3) -> s
     return _dump(await arena.arena_lookup(def_ids, region=region, limit=limit))
 
 
-@mcp.tool()
+@mcp.tool(title="Memory search", annotations=READ_ONLY)
 def memory_search(query: str, limit: int = 5, scope: str = "all") -> str:
     """Search the assistant's local memory store (read-only).
 
@@ -103,7 +119,7 @@ def memory_search(query: str, limit: int = 5, scope: str = "all") -> str:
         raise ToolError(str(exc)) from exc
 
 
-@mcp.tool()
+@mcp.tool(title="Memory store stats", annotations=READ_ONLY)
 def memory_stats() -> str:
     """Report row counts and database size of the local memory store."""
     try:
@@ -112,7 +128,7 @@ def memory_stats() -> str:
         raise ToolError(str(exc)) from exc
 
 
-@mcp.tool()
+@mcp.tool(title="Service health", annotations=READ_ONLY)
 def service_health() -> str:
     """Probe the local services of the assistant stack and report their status."""
     return _dump(health.service_health())

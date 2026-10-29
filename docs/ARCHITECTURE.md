@@ -1,4 +1,4 @@
-﻿# 代码结构与改动指引
+# 代码结构与改动指引
 
 这份文档说明仓库里每个文件负责什么、改动时会牵连到哪些地方，以及当前已经验证到什么程度。
 面向两类读者：想读懂实现的读者，和准备提 PR 的贡献者。
@@ -18,7 +18,7 @@ aninest-mcp/
 ├── scripts/                # 可复现替身与 MCP 自检
 ├── demo/                   # 最小宿主 + 一键 story（端到端演示）
 ├── examples/               # 客户端接入样例
-└── docs/                   # 设计取舍、威胁模型、数据边界、本文件
+└── docs/                   # 设计取舍、威胁模型、数据边界、规范符合性、本文件
 ```
 
 ## 模块职责
@@ -65,15 +65,17 @@ aninest-mcp/
 ## 验证记录（本机实测）
 
 - ✅ `ruff check src tests eval scripts` → All checks passed
-- ✅ `python -m unittest discover -s tests` → 65 tests OK
+- ✅ `python -m unittest discover -s tests` → 83 tests OK（含 7 个 MCP 契约用例）
 - ✅ `python eval/run_eval.py` → 26/26，recall / precision / 字段准确率均 1.000
 - ✅ `python eval/run_eval.py --network --online-cases 18` → 18/18，p50 1.67 s，p95 1.99 s
 - ✅ `python scripts/mcp_smoke.py --call service_health` → 5 个工具 + prompt 可见，工具返回 JSON
 - ✅ `python scripts/mcp_smoke.py --call art_search` → 返回真实图片 URL（分级 safe、方向 portrait）
 - ✅ `python scripts/make_demo_db.py` + `ANINEST_MEMORY_DB=… --call memory_stats` → rows 5 / global 3 / session 2
 - ✅ `python scripts/fake_arena.py` + `ANINEST_ARENA_URL=127.0.0.1:6192 --call arena_lookup` → 返回 2 支假队伍
-- ✅ 干净 venv 安装：`pip install <repo>` → `aninest-mcp 0.1.0`，console script 与 `import aninest` 均正常
+- ✅ 干净 venv 安装：`pip install <repo>` → `aninest-mcp`，console script 与 `import aninest` 均正常
+- ✅ 从 GitHub 直装（2026-10-29）：全新 venv + `pip install "git+https://github.com/moriruruka/aninest-mcp.git"`（清华镜像加速）
+  → 装出 `aninest_mcp-0.2.0`，`aninest-mcp.exe` 可启动，握手协商 `protocol=2025-11-25`，5 个工具、`service_health` 5/5
 - ✅ Docker 镜像（本机 Docker 29.9.2）：`docker build` 成功（252 MB）→ 以 `uid=10001` 非 root 运行 →
-  `HEALTHCHECK` 转 healthy → `initialize` 返回 `serverInfo.version=0.1.0` → `tools/list` 返回 5 个工具
+  `HEALTHCHECK` 转 healthy → `initialize` 返回 `serverInfo.version=0.2.0` → `tools/list` 返回 5 个工具
 - ℹ️ 构建机器所在网络无法直连 Docker Hub，镜像构建使用了 `--build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-slim`；
   CI 使用默认的 `python:3.12-slim`

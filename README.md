@@ -36,6 +36,7 @@
 - [威胁模型：它能动什么、谁能让它动](docs/THREAT_MODEL.md)
 - [代码结构与改动指引](docs/ARCHITECTURE.md)
 - [怎么验证它真的能用](docs/TESTING.md)
+- [MCP 规范符合性：已符合 / 不做 / 还能加固](docs/COMPLIANCE.md)
 
 ---
 
@@ -149,7 +150,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m unittest discover -s tests -v   # 65 tests
+python -m unittest discover -s tests -v   # 83 tests
 python eval/run_eval.py                   # 离线评测，26/26
 
 # stdio 模式（给桌面客户端用）
@@ -158,6 +159,21 @@ aninest-mcp
 # 或 Streamable HTTP 模式
 ANINEST_MCP_TRANSPORT=streamable-http ANINEST_MCP_PORT=8765 aninest-mcp
 ```
+
+### 只想要命令行：从 GitHub 直接装（已实测）
+
+不打算改代码的话，不必 clone，一条命令装进任意 Python 环境：
+
+```bash
+pip install "git+https://github.com/moriruruka/aninest-mcp.git"
+aninest-mcp          # 默认 stdio 模式，等客户端连上来
+```
+
+- 国内网络慢或超时，加镜像：`pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "git+https://github.com/moriruruka/aninest-mcp.git"`。
+- 实测（2026-10-29，Windows 11，Python 3.13.9 + pip 25.2，一个全新 venv）：装出 `aninest_mcp-0.2.0`，
+  `Scripts\aninest-mcp.exe` 可直接启动；MCP 握手协商到 `protocol=2025-11-25`，
+  `serverInfo = aninest-mcp 0.2.0`，`tools/list` 返回 5 个工具，`service_health` 返回 5/5。
+- 本仓库**没有发布到 PyPI**（作者的选择），所以 `pip install aninest-mcp` 会 404；上面这条 git URL 才是官方安装方式。
 
 Docker：
 
@@ -176,7 +192,7 @@ docker build --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-s
 ```
 
 镜像行为已实测（Docker 29.9.2，Linux 容器）：以 `uid=10001` 非 root 运行、`HEALTHCHECK`
-转 healthy、`initialize` 握手返回 `serverInfo.version = 0.1.0`、`tools/list` 返回全部 5 个工具。
+转 healthy、`initialize` 握手返回 `serverInfo.version = 0.2.0`、`tools/list` 返回全部 5 个工具。
 
 ## 看得见的验证：一条命令跑完整段对话
 
@@ -373,7 +389,7 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 
 ## 验证它
 
-五层验证的分工与逐层命令写在 [docs/TESTING.md](docs/TESTING.md)：lint → 单元测试（67 个）
+五层验证的分工与逐层命令写在 [docs/TESTING.md](docs/TESTING.md)：lint → 单元测试（83 个）
 → 离线评测（26 例）→ 替身演示 → 真机联调（`scripts/live_check.py`）。只有第 5 层能证明
 “接你自己的服务仍然工作”。
 
@@ -400,7 +416,7 @@ src/aninest/
     arena.py         # 阵容校验 + 上游 payload 扁平化
     memory.py        # 只读 SQLite 检索与统计
     health.py        # TCP 探活
-tests/               # 65 个 unittest
+tests/               # 83 个 unittest
 eval/                # golden set + 离线/联网评测脚本
 scripts/             # 不依赖客户端的自检脚本
 docs/                # ADR、隐私自查

@@ -6,7 +6,9 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DEFAULT_UA = "aninest-mcp/0.1 (+https://github.com/)"
+from .version import VERSION
+
+DEFAULT_UA = f"aninest-mcp/{VERSION} (+https://github.com/moriruruka/aninest-mcp)"
 
 
 def _env(name: str, default: str) -> str:
