@@ -36,6 +36,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 ROOT = Path(__file__).resolve().parents[1]
+VERBOSE = False
 
 # Windows 控制台默认 cp936/cp1252，打印中文和 emoji 会炸；统一切成 UTF-8。
 for _stream in (sys.stdout, sys.stderr):
@@ -49,6 +50,26 @@ for _stream in (sys.stdout, sys.stderr):
 # ---------------------------------------------------------------- routing ---
 
 _ID = re.compile(r"\b\d{6}\b")
+_REPLACE = re.compile(
+    r"把?\s*([^\s，,、。；;：:]{1,12})\s*(?:换成|替换成|替换为|改成|换作)\s*"
+    r"([^\s，,、。；;：:]{1,12})"
+)
+_ARENA_WORDS = ("作业", "阵容", "防守", "队伍", "jjc")
+_CHAR_WORDS = ("哪个角色", "什么角色", "是谁", "分别是", "对应哪个", "叫什么")
+_NOISE = (
+    "查一下", "帮我查", "帮我", "请问", "问一下", "再查一次", "再查", "查",
+    "看看", "这个", "这套", "的作业", "作业", "阵容", "防守", "竞技场", "竞技", "就换一个",
+    "换一个", "一下", "呢", "吗", "。", "？", "?", "，", ",", "：", ":",
+    "分别是哪个角色", "分别是", "哪个角色", "什么角色", "是谁", "对应哪个", "叫什么",
+)
+_SPLIT = re.compile(r"[、,，和与及/\s]+")
+
+
+def _clean(text: str) -> str:
+    out = text
+    for word in _NOISE:
+        out = out.replace(word, " ")
+    return " ".join(part for part in _SPLIT.split(out) if part)
 
 
 def route(text: str) -> tuple[str, dict] | None:
@@ -59,9 +80,25 @@ def route(text: str) -> tuple[str, dict] | None:
     if any(word in text for word in ("服务", "状态", "活着", "端口")) or "health" in lowered:
         return "service_health", {}
 
-    arena_words = ("作业", "阵容", "队伍", "jjc")
-    if ids and (any(word in text for word in arena_words) or "arena" in lowered):
-        return "arena_lookup", {"def_ids": ids, "limit": 3}
+    if any(word in text for word in _CHAR_WORDS):
+        return "character_lookup", {"query": _clean(text), "limit": 5}
+
+    replace = _REPLACE.search(text)
+    if replace and any(word in text for word in _ARENA_WORDS):
+        lineup = _clean(text.replace(replace.group(0), " ")).split()
+        return "arena_lookup", {
+            "defense": lineup or None,
+            "replace": [f"{replace.group(1)}->{replace.group(2)}"],
+            "limit": 3,
+        }
+
+    if any(word in text for word in _ARENA_WORDS) or "arena" in lowered:
+        lineup = _clean(text).split()
+        if not ids and not lineup:
+            return None
+        if ids and not lineup:
+            return "arena_lookup", {"def_ids": ids, "limit": 3}
+        return "arena_lookup", {"defense": lineup or None, "def_ids": ids or None, "limit": 3}
 
     if any(word in text for word in ("统计", "多少条", "规模")) and any(
         word in text for word in ("记忆", "知识", "memory")
@@ -101,6 +138,26 @@ def _first_text(result) -> str:
     return "（工具没有返回文本）"
 
 
+_ERROR_HINTS = {
+    "cannot apply replacement": "这次替换没改成——同一个角色、或者队里已经有这个人了。换一个再试。",
+    "no character resolved": "这几个名字一个都没认出来。可以先用 character_lookup 看看标准写法。",
+    "defense is required": "没给阵容。至少要有一个角色名或 id。",
+    "arena service rejected": "作业服务拒绝了这次请求（多半是登录态或风控）。",
+    "arena request failed": "连不上作业服务，检查它有没有在跑。",
+    "vision": "这台机器没装识图依赖，或者没有头像包。",
+    "address must be http or https": "只接受 http/https 地址。",
+    "host not allowed": "这个域名不在允许列表里。",
+}
+
+
+def _speak_error(tool: str, payload: str) -> str:
+    """把工具报错说成人话；对不上的原样给出来，免得吞掉信息。"""
+    for needle, hint in _ERROR_HINTS.items():
+        if needle in payload:
+            return f"{hint}（原文：{payload.splitlines()[0][:160]}）"
+    return payload.splitlines()[0][:200] if payload else "工具报错了，但没给具体原因。"
+
+
 def _speak(tool: str, payload: str) -> str:
     """把工具返回的结构化 JSON 说成人话——真实宿主里这步由模型完成。"""
     try:
@@ -114,20 +171,45 @@ def _speak(tool: str, payload: str) -> str:
         speech = f"{data.get('up')}/{data.get('total')} 个服务在线。"
         return speech + (f"没起来的：{'、'.join(down)}。" if down else "")
 
+    if tool == "character_lookup":
+        matches = data.get("matches") or []
+        if not matches:
+            return "这个角色名我没认出来（真实宿主里会把候选念给你听）。"
+        said = "、".join(f"{item['name']}（{item['id']}）" for item in matches)
+        unknown = data.get("unresolved") or []
+        return f"对上 {len(matches)} 个：{said}。" + (
+            f" 没认出来的：{'、'.join(unknown)}。" if unknown else ""
+        )
+
     if tool == "arena_lookup":
         teams = data.get("teams") or []
+        lineups = data.get("lineup") or []
+        asked = " / ".join(
+            f"{item['slot']}号位 {item['name']}" for item in lineups
+        ) or "（未知阵容）"
         if not teams:
-            return "作业网这次没给结果。"
+            return f"按 {asked} 查，作业网没给结果。"
         first = teams[0]
-        lineups = first.get("defense") or first.get("attack") or []
-        lineup = " / ".join(str(n) for n in lineups) or "（未知阵容）"
+        names = first.get("defense_names") or first.get("defense") or []
+        lineup = " / ".join(str(n) for n in names) or "（未知阵容）"
         votes = []
         if first.get("upvotes") is not None:
             votes.append(f"赞 {first['upvotes']}")
         if first.get("downvotes") is not None:
             votes.append(f"踩 {first['downvotes']}")
         tail = f"（{'、'.join(votes)}）" if votes else ""
-        return f"找到 {data.get('found', len(teams))} 支队伍，最热门的是：{lineup}{tail}。"
+        applied = data.get("applied") or []
+        change = ""
+        for item in applied:
+            action = item.get("action")
+            if action == "replace":
+                change += f"（把 {item.get('from')} 换成 {item.get('to')}）"
+            elif action == "exclude":
+                change += f"（先拿掉 {item.get('from')}）"
+        return (
+            f"按 {asked} 查{change}：找到 {data.get('found', len(teams))} 支队伍，"
+            f"最热门的是 {lineup}{tail}。"
+        )
 
     if tool == "art_search":
         images = data.get("results") or []
@@ -152,7 +234,9 @@ def _speak(tool: str, payload: str) -> str:
     return payload
 
 
-async def converse(lines: list[str], echo_prompts: bool = True) -> int:
+async def converse(lines: list[str], echo_prompts: bool = True, verbose: bool = False) -> int:
+    global VERBOSE
+    VERBOSE = verbose or os.environ.get("ANINEST_DEMO_VERBOSE") == "1"
     params = StdioServerParameters(
         command=sys.executable, args=["-m", "aninest"], env=_env(), cwd=str(ROOT)
     )
@@ -182,13 +266,17 @@ async def converse(lines: list[str], echo_prompts: bool = True) -> int:
                     continue
 
                 tool, args = picked
-                print(f"host > 调 {tool}({json.dumps(args, ensure_ascii=False)})")
+                if VERBOSE:
+                    print(f"host > 调 {tool}({json.dumps(args, ensure_ascii=False)})")
                 result = await session.call_tool(tool, args)
                 payload = _first_text(result)
                 if result.isError:
-                    print(f"mcp  > 工具报错：{payload}")
+                    print(f"host > 这一步没成功：{_speak_error(tool, payload)}")
+                    if VERBOSE:
+                        print(f"mcp  > 工具报错：{payload}")
                 else:
-                    print(f"mcp  > {payload[:280]}{'' if len(payload) <= 280 else ' …'}")
+                    if VERBOSE:
+                        print(f"mcp  > {payload[:280]}{'' if len(payload) <= 280 else ' …'}")
                     print(f"host > {_speak(tool, payload)}")
                 print()
     return 0
@@ -198,10 +286,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="AniNest demo host")
     parser.add_argument("--say", action="append", default=[], help="说一句话然后退出（可重复）")
     parser.add_argument("--quiet-prompts", action="store_true", help="不打印工具清单")
+    parser.add_argument("--verbose", action="store_true", help="额外打印工具名、原始 JSON")
     options = parser.parse_args()
 
     if options.say:
-        return asyncio.run(converse(options.say, echo_prompts=not options.quiet_prompts))
+        return asyncio.run(
+            converse(options.say, echo_prompts=not options.quiet_prompts, verbose=options.verbose)
+        )
 
     print("[host] 这是一个最小宿主示例。输入一句话，或 Ctrl-C 退出。")
     print("[host] 试试：本机服务都活着吗")
@@ -211,7 +302,7 @@ def main() -> int:
     lines: list[str] = []
     for raw in sys.stdin:
         lines.append(raw)
-    return asyncio.run(converse(lines, echo_prompts=True))
+    return asyncio.run(converse(lines, echo_prompts=True, verbose=options.verbose))
 
 
 if __name__ == "__main__":

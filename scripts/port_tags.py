@@ -11,9 +11,9 @@ point the script at your own checkout::
 
     python scripts/port_tags.py --source path/to/astrbot_plugin_art_gallery/tagging.py
 
-Without ``--source`` it tries ``ANINEST_TAG_SOURCE`` and then a few default
-locations from the author's machine. If none of them exists the script stops
-with a clear message rather than writing a half-empty table.
+Without ``--source`` it falls back to ``ANINEST_TAG_SOURCE``. Nothing
+machine-specific is baked into the script: if neither is given it stops with a
+clear message rather than writing a half-empty table.
 """
 
 from __future__ import annotations
@@ -29,11 +29,6 @@ CORE_TABLES = ("CN_TAG_ALIASES", "CN_CHARACTERS", "STOP_PHRASES", "BLOCKED_TAGS"
 #: ``_ORIENTATION_WORDS`` …) is carried over too — the parser needs all of them,
 #: and silently dropping one only shows up as a crash at import time.
 DATA_TYPES = (dict, tuple, list, frozenset, set)
-
-DEFAULT_SOURCES = (
-    r"<assistant-plugins-dir>"
-    r"\astrbot_plugin_art_gallery\tagging.py",
-)
 
 HEADER = '''"""Chinese -> booru tag dictionary, ported from the assistant's table.
 
@@ -63,7 +58,7 @@ def load_source(path: Path):
 
 
 def find_source(explicit: str | None) -> Path:
-    for candidate in (explicit, os.environ.get("ANINEST_TAG_SOURCE"), *DEFAULT_SOURCES):
+    for candidate in (explicit, os.environ.get("ANINEST_TAG_SOURCE")):
         if candidate and Path(candidate).is_file():
             return Path(candidate)
     raise SystemExit(

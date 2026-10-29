@@ -9,11 +9,18 @@
   "mcpServers": {
     "aninest": {
       "command": "aninest-mcp",
-      "env": { "ANINEST_MEMORY_DB": "C:/Users/you/.aninest/memory.db" }
+      "env": {
+        "ANINEST_MEMORY_DB": "C:/Users/you/.aninest/memory.db",
+        "ANINEST_PCR_AVATARS": "C:/Users/you/.aninest/pcr-avatars"
+      }
     }
   }
 }
 ```
+
+- `ANINEST_PCR_AVATARS` 只有想用 `portrait_identify` 时才需要：指向一个放头像的目录，
+  文件名是 `<六位角色 id>.webp/.png/.jpg`。不配这个变量，其余六个工具照常工作。
+- 想识图还要装可选依赖：`pip install -e ".[vision]"`（numpy + Pillow）。
 
 - Claude Desktop：配置文件名 `claude_desktop_config.json`（见同目录示例）。
 - DSH 等支持 MCP 的宿主：把 `aninest` 加进它的 MCP 服务器列表；命令用 `aninest-mcp` 或
@@ -51,11 +58,19 @@ ANINEST_MCP_TRANSPORT=sse ANINEST_MCP_PORT=8765 aninest-mcp
 ```bash
 python scripts/mcp_smoke.py                                     # 列工具 + 调 service_health
 python scripts/mcp_smoke.py --call memory_stats
-python scripts/mcp_smoke.py --call art_search --args-file args.json
+python scripts/mcp_smoke.py --call character_lookup --args-file args.json
+python scripts/mcp_smoke.py --call arena_lookup --args-file lineup.json
+python demo/story.py                                            # 一段完整对话，不用客户端
 ```
 
-`args.json`：
+`args.json`（名字解析）：
 
 ```json
-{ "query": "初音未来 泳装 竖图", "count": 1, "size": "compressed" }
+{ "query": "布丁和克总" }
+```
+
+`lineup.json`（按名字查作业，可带排除/替换）：
+
+```json
+{ "defense": ["布丁", "克总", "真琴", "纺希", "莉莎"], "replace": ["布丁->怜"], "limit": 3 }
 ```

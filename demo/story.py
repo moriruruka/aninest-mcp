@@ -23,13 +23,24 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Windows 控制台默认 cp936；先把输出切到 UTF-8，否则中文提示会是乱码。
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if _reconfigure is not None:
+        try:
+            _reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # pragma: no cover - unusual streams
+            pass
 DEMO_DB = ROOT / "demo" / "demo_memory.db"
 ARENA_PORT = 6192
 
 SCRIPT = [
     "本机服务都活着吗",
     "帮我回忆一下泳装插画那件事",
-    "查一下 100141 100241 100341 100441 100541 的作业",
+    "布丁、克总、真琴、纺希、莉莎这个防守的作业",
+    "布丁、克总、真琴、纺希、莉莎这个防守，把布丁换成怜，再查一次",
+    "布丁和克总分别是哪个角色",
 ]
 
 

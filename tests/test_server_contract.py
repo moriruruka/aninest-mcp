@@ -15,6 +15,8 @@ from aninest.server import mcp
 
 EXPECTED_TOOLS = {
     "art_search": ("Illustration search", True),
+    "character_lookup": ("Character lookup", False),
+    "portrait_identify": ("Portrait identification", False),
     "arena_lookup": ("Arena lineup lookup", True),
     "memory_search": ("Memory search", False),
     "memory_stats": ("Memory store stats", False),

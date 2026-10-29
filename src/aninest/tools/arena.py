@@ -6,6 +6,7 @@ import httpx
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..config import SETTINGS
+from . import pcr
 
 
 def validate_ids(def_ids: list[int]) -> list[int]:
@@ -79,6 +80,17 @@ def _unit_ids(units: object) -> list[int]:
     return ids
 
 
+def _names(ids: list[int]) -> list[str]:
+    """Human names for a lineup, so a host can read it aloud without a second call."""
+    try:
+        from . import pcr
+
+        index = pcr.index()
+    except Exception:  # pragma: no cover - names are a convenience, never a failure
+        return []
+    return [index.name_of(char_id) for char_id in ids]
+
+
 def summarise(payload: dict, limit: int = 3) -> dict:
     """Flatten the upstream payload into a small, model-friendly structure.
 
@@ -88,10 +100,14 @@ def summarise(payload: dict, limit: int = 3) -> dict:
     rows = _row_list(payload)
     summaries = []
     for row in rows[:limit]:
+        defense = _unit_ids(row.get("def"))
+        attack = _unit_ids(row.get("atk"))
         summaries.append(
             {
-                "defense": _unit_ids(row.get("def")),
-                "attack": _unit_ids(row.get("atk")),
+                "defense": defense,
+                "attack": attack,
+                "defense_names": _names(defense),
+                "attack_names": _names(attack),
                 "upvotes": row.get("up"),
                 "downvotes": row.get("down"),
                 "updated": row.get("updated"),
@@ -101,18 +117,68 @@ def summarise(payload: dict, limit: int = 3) -> dict:
     return {"found": len(rows), "teams": summaries}
 
 
-async def arena_lookup(def_ids: list[int], region: int = 1, limit: int = 3) -> dict:
+async def arena_lookup(
+    defense: object = None,
+    def_ids: object = None,
+    region: int = 1,
+    limit: int = 3,
+    exclude: object = None,
+    replace: object = None,
+) -> dict:
     """Look up defence teams for a lineup through the local arena browser service.
 
     Args:
-        def_ids: 1-5 six-digit character ids that form the defence lineup.
-        region: arena region id (1 = main).
+        defense: the lineup — character names, aliases, four-digit uids or six-digit
+            ids, mixed freely ("布丁 克总 真琴", ["宫子", 100301]). Slot order is the
+            caller's business; the service only needs the set.
+        def_ids: same thing but ids only (kept for callers that already hold ids).
+        region: arena region id (1 = mainland, 2 = overseas, 0 = no filtering).
         limit: how many teams to summarise (1-6, a display cap rather than a game rule).
+        exclude: names/ids to drop before searching — "先排除一个角色再查".
+        replace: swap a character in place, e.g. ["宫子->真琴"] or
+            [{"from": "宫子", "to": "真琴"}]; positions are preserved.
     """
-    try:
-        ids = validate_ids(list(def_ids))
-    except ValueError as exc:
-        raise ToolError(str(exc)) from exc
+    source = defense if defense not in (None, "", []) else def_ids
+    if source in (None, "", []):
+        raise ToolError("defense is required: pass character names or ids")
+
+    resolved = pcr.resolve_team(source, limit=5)
+    ids: list[int] = list(resolved["ids"])
+    unresolved: list[dict] = list(resolved["unresolved"])
+    applied: list[dict] = []
+
+    if exclude:
+        outcome = pcr.apply_exclude(ids, exclude)
+        ids = outcome["ids"]
+        applied.extend(outcome["applied"])
+        unresolved.extend(outcome["unresolved"])
+
+    if replace:
+        outcome = pcr.apply_replace(ids, replace)
+        ids = outcome["ids"]
+        applied.extend(outcome["applied"])
+        if outcome["problems"]:
+            details = []
+            for problem in outcome["problems"]:
+                if problem.get("reason") == "unknown":
+                    names = ", ".join(
+                        hit["name"] for hit in problem.get("suggestions") or []
+                    )
+                    details.append(
+                        f"{problem.get('from') or problem.get('to')} is not a known "
+                        f"character (did you mean {names}?)"
+                    )
+                else:
+                    details.append(str(problem.get("detail") or problem.get("reason")))
+            raise ToolError("cannot apply replacement: " + "; ".join(details))
+
+    if not ids:
+        hint = ""
+        if unresolved:
+            first = unresolved[0]
+            names = ", ".join(hit["name"] for hit in first.get("suggestions") or [])
+            hint = f" (nothing matched {first['input']!r}; did you mean {names}?)"
+        raise ToolError("no character resolved from the given lineup" + hint)
 
     url = SETTINGS.arena_url.rstrip("/") + "/search"
     try:
@@ -136,5 +202,10 @@ async def arena_lookup(def_ids: list[int], region: int = 1, limit: int = 3) -> d
     data = payload.get("data") or {}
     summary = summarise(data, max(1, min(6, int(limit))))
     summary["def_ids"] = ids
+    summary["lineup"] = pcr.describe(ids)
     summary["region"] = int(region)
+    if applied:
+        summary["applied"] = applied
+    if unresolved:
+        summary["unresolved"] = unresolved
     return summary

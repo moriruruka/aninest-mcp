@@ -35,10 +35,13 @@
 | `arena_lookup` | `ANINEST_ARENA_URL` 的 `POST /search` | 环境变量固定，模型只影响 5 个六位 id | 把内网地址当上游（若环境变量被改） |
 | `memory_search` / `memory_stats` | 本地文件 | 环境变量决定路径 | 读到 `ANINEST_MEMORY_DB` 指向的任意 SQLite |
 | `service_health` | `ANINEST_PROBE_HOST` + 固定 5 个端口 | 环境变量决定 host | 对内网做端口探测（仅 5 个固定端口） |
+| `character_lookup` | 无出站；只读随包的 `data/pcr_chars.json` | 路径写死在包内 | 只影响匹配结果，读不到包外的东西 |
+| `portrait_identify` | 无出站；读 `ANINEST_PCR_AVATARS` 目录与 `images` 给的图 | 头像目录来自环境变量；`images` 里的路径由宿主原样结转 | 读到模型指定的任意可读文件（只用于比对打分，不回传文件内容）；图片与头像包都不外发 |
 
 **结论：本仓库的 SSRF 面由环境变量而非工具参数控制。** 这是有意的：
 工具参数里没有任何"URL"字段，模型无法让进程去连一个它自己挑的地址。
-代价是——**部署者必须自己保证这几个环境变量指向可信地址**。
+代价是——**部署者必须自己保证这几个环境变量指向可信地址**；
+`portrait_identify` 是唯一能从参数里读到本地文件的工具，宿主若不希望它读任意路径，应在调用前自己校验 `images`。
 
 ## 4. 威胁与控制
 

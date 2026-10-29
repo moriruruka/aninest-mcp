@@ -19,7 +19,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .config import SETTINGS
-from .tools import arena, art, health, memory
+from .tools import arena, art, health, memory, pcr, portrait
 from .version import VERSION
 
 #: Every tool only reads: nothing writes user data, so hosts may auto-approve them.
@@ -38,9 +38,12 @@ READ_ONLY_OPEN = ToolAnnotations(
 )
 
 INSTRUCTIONS = """\
-AniNest tool server. Five capabilities:
+AniNest tool server. Seven capabilities:
 - art_search: turn a Chinese illustration request into booru tags, then return image links.
-- arena_lookup: look up arena defence teams for a lineup through the local browser service.
+- character_lookup: map a character name or nickname ("布丁", "克总") to its arena id.
+- arena_lookup: look up arena defence teams for a lineup — names or ids, with optional
+  exclude/replace so "查不到就换个角色再查" is one call, not a reimplementation.
+- portrait_identify: name the characters in cropped portrait images (needs an avatar pack).
 - memory_search / memory_stats: read-only retrieval over the assistant's local memory store.
 - service_health: report which local services of the stack are currently reachable.
 
@@ -88,16 +91,87 @@ async def art_search(
     )
 
 
+@mcp.tool(title="Character lookup", annotations=READ_ONLY)
+def character_lookup(query: str, limit: int = 5) -> str:
+    """Map a character name, nickname, four-digit uid or six-digit id to an arena id.
+
+    Args:
+        query: what the player said — "布丁", "克总", "猫拳", "1001", "100101".
+        limit: how many candidates to return, 1-10.
+    """
+    index = pcr.index()
+    parsed = index.parse_text(query, limit=max(1, limit))
+    matches = []
+    for slot, char_id in enumerate(parsed.ids, start=1):
+        character = index.character(char_id)
+        if character is None:
+            continue
+        item = character.as_dict()
+        item["slot"] = slot
+        matches.append(item)
+
+    payload: dict[str, Any] = {
+        "query": query,
+        "matches": matches,
+        "unresolved": parsed.unknown,
+        "total_characters": len(index),
+    }
+    if not matches:
+        payload["suggestions"] = [hit.as_dict() for hit in index.suggest(query, 3)]
+    return _dump(payload)
+
+
+@mcp.tool(title="Portrait identification", annotations=READ_ONLY)
+def portrait_identify(images: list[str], top_k: int = 3, min_score: float = 0.55) -> str:
+    """Identify which characters are in cropped portrait images.
+
+    Args:
+        images: one entry per portrait — a file path, raw bytes as base64, or a data URI.
+        top_k: candidates per portrait, 1-10.
+        min_score: similarity floor below which the portrait counts as unknown, 0-1.
+    """
+    try:
+        payload = portrait.identify(images, top_k=top_k, min_score=min_score)
+    except portrait.VisionUnavailable as exc:
+        raise ToolError(str(exc)) from exc
+    except ValueError as exc:
+        raise ToolError(str(exc)) from exc
+    for result in payload["results"]:
+        for candidate in result["candidates"]:
+            candidate["name"] = pcr.index().name_of(candidate["id"])
+        if result["best"]:
+            result["best"]["name"] = pcr.index().name_of(result["best"]["id"])
+    return _dump(payload)
+
+
 @mcp.tool(title="Arena lineup lookup", annotations=READ_ONLY_OPEN)
-async def arena_lookup(def_ids: list[int], region: int = 1, limit: int = 3) -> str:
+async def arena_lookup(
+    defense: list[str] | None = None,
+    def_ids: list[int] | None = None,
+    region: int = 1,
+    limit: int = 3,
+    exclude: list[str] | None = None,
+    replace: list[str] | None = None,
+) -> str:
     """Look up defence teams for a lineup via the local arena browser service.
 
     Args:
-        def_ids: 1-5 six-digit character ids forming the defence lineup.
-        region: arena region id, 1 = main.
+        defense: the lineup by name — "布丁", "克总", "真琴" … (names, aliases or ids).
+        def_ids: the same thing as six-digit ids, if you already have them.
+        region: arena region id, 1 = mainland, 2 = overseas, 0 = no filtering.
         limit: how many teams to summarise, 1-6 (display cap, not a game rule).
+        exclude: names to drop before searching ("先排除一个再查").
+        replace: in-place swaps such as ["宫子->真琴"]; positions are preserved.
     """
-    return _dump(await arena.arena_lookup(def_ids, region=region, limit=limit))
+    return _dump(
+        await arena.arena_lookup(
+            defense if defense else def_ids,
+            region=region,
+            limit=limit,
+            exclude=exclude,
+            replace=replace,
+        )
+    )
 
 
 @mcp.tool(title="Memory search", annotations=READ_ONLY)

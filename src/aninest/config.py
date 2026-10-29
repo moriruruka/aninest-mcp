@@ -40,6 +40,9 @@ class Settings:
     port: int = field(default_factory=lambda: int(_env("ANINEST_MCP_PORT", "8765")))
     #: Hosts probed by the health tool.
     probe_host: str = field(default_factory=lambda: _env("ANINEST_PROBE_HOST", "127.0.0.1"))
+    #: Directory of character avatars named ``<six-digit-id>.webp``; empty means
+    #: portrait_identify is unavailable. Game art is not redistributed with the repo.
+    pcr_avatars: str = field(default_factory=lambda: _env("ANINEST_PCR_AVATARS", ""))
 
 
 SETTINGS = Settings()

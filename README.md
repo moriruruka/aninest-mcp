@@ -6,7 +6,8 @@
 
 把一个二次元向 AI 助手的本事，装进一个能被任何宿主调用的巢。
 
-查竞技场作业 · 按中文描述找插画 · 检索本地记忆 · 探活本机服务 —— 四个领域、五个工具，走
+按名字查竞技场作业 · 按中文描述找插画 · 用名字或头像认角色 · 检索本地记忆 · 探活本机服务 ——
+五个领域、七个工具，走
 **MCP（Model Context Protocol，模型上下文协议）**。宿主可以是桌面 Agent、编辑器插件、自研客户端，
 它们不需要知道背后是哪个图站、哪个本地服务、哪个游戏。
 
@@ -37,18 +38,28 @@ docker build -t aninest-mcp . && docker run --rm -p 127.0.0.1:8765:8765 aninest-
 
 > 本仓库没有发布到 PyPI，`pip install aninest-mcp` 会 404；上面这条 git URL 才是官方装法。
 
-## 五个工具
+## 七个工具
 
 | 工具 | 你大概会这么问 | 返回 |
 | --- | --- | --- |
 | `art_search` | "来两张初音未来泳装的竖图" | 图片链接 + 用到的 tag + 是否放宽过条件 |
-| `arena_lookup` | "这队作业查一下：100141 100241 100341 100441 100541" | 别人用的防守/进攻阵容与票数 |
+| `arena_lookup` | "布丁、克总、真琴、纺希、莉莎这队作业" | 别人用的防守/进攻阵容（含角色名）与票数 |
+| `character_lookup` | "布丁和克总分别是哪个角色" | 角色名、六位 id、四位数 uid、别名 |
+| `portrait_identify` | "这几张头像分别是谁" | 每张头像的候选角色与相似度 |
 | `memory_search` | "上次说的那个配色偏好还记得吗" | 记忆条目 + 打分 + 范围（本会话/全局） |
 | `memory_stats` | "你的记忆存了多少了" | 行数、范围分布、库大小 |
 | `service_health` | "服务都活着吗" | 五个本地端口的连通性 |
 
+阵容可以直接说人话：**角色名、黑话、四位数 uid、六位 id 混着写都行**（`布丁 克总 100301`），
+一队 5 人；查不到作业时，同一次调用就能带上"排除某角色"或"把 A 换成 B"再查：
+
+```json
+{ "defense": ["布丁", "克总", "真琴"], "exclude": ["真琴"] }
+{ "defense": ["布丁", "克总", "真琴"], "replace": ["布丁->怜"], "region": 1 }
+```
+
 怎么问、参数怎么填、返回字段什么意思、常见报错怎么办：**[使用说明](docs/USAGE.md)**。
-五个工具全是**只读**：不写你的数据、不发消息、不动账号。
+七个工具全是**只读**：不写你的数据、不发消息、不动账号。
 
 ## 文档地图
 
@@ -83,7 +94,7 @@ MCP 把它们变成**协议级工具**：
 
 ## 来历：从私有助手拆出来的能力层
 
-这五个工具不是为写示例而写的，它们原本长在一个**私有**的个人助手里（自己电脑上的 QQ 聊天助手），
+这七个工具不是为写示例而写的，它们原本长在一个**私有**的个人助手里（自己电脑上的 QQ 聊天助手），
 和消息格式、人设、账号登录态缠在一起。把它们抽成协议级工具之后，能力才第一次能被别的宿主复用、被单独测试、被回归评测。
 
 ```mermaid
@@ -92,7 +103,7 @@ flowchart LR
         A["聊天助手<br/>消息 / 人设 / 语音"]
     end
     subgraph pub["AniNest（本仓库）"]
-        S["MCP server<br/>5 tools + 1 prompt"]
+        S["MCP server<br/>7 tools + 1 resource + 1 prompt"]
         H["最小宿主 demo/host.py<br/>演示与测试用"]
     end
     A -- "MCP（stdio / HTTP）" --> S
@@ -105,8 +116,9 @@ flowchart LR
 
 完整来历、以及“哪些东西刻意没有开源”见 [docs/ORIGIN.md](docs/ORIGIN.md)；
 **与助手实现逐项对照**（哪些原样搬、哪些简化、哪些改掉）见 [docs/PORTING.md](docs/PORTING.md)——
-中文 tag 词典、角色表、礼貌词表与黑名单是整表移植的（171 / 56 / 39 / 26 / 19 条），
-所以同一句中文在助手和这个 server 上会得到同一组 tag。
+中文 tag 词典、角色名词典、礼貌词表与黑名单是整表移植的（171 / 56 / 39 / 26 / 19 条），
+所以同一句中文在助手和这个 server 上会得到同一组 tag。这里的「角色名词典」只负责把中文名展开成图站 tag；
+`character_lookup` / `arena_lookup` 用的是另一张 351 角色的表（见 [docs/USAGE.md](docs/USAGE.md)）。
 
 ## 架构
 
@@ -132,15 +144,21 @@ flowchart LR
                    └─────────────────┘  └─────────────┘  └────────────────┘
 ```
 
-## 五个工具（参数与返回细节）
+## 七个工具（参数与返回细节）
 
 | 工具 | 作用 | 关键参数 | 返回 |
 | --- | --- | --- | --- |
 | `art_search` | 中文/英文描述 → 图站检索 → 图片链接 | `query`、`count`、`size`、`orientation`、`extra_tags`、`negative` | `tags`、`tags_used`、`relaxed`、`results[]`（含 `image_url` / 尺寸 / 分级） |
-| `arena_lookup` | 阵容 → 防守作业摘要 | `def_ids`（1–5 个六位角色 id，一队 5 人）、`region`、`limit` | `found`、`teams[]` |
+| `arena_lookup` | 阵容（名字或 id）→ 防守作业摘要 | `defense`、`def_ids`、`region`、`limit`、`exclude`、`replace` | `lineup[]`、`applied[]`、`unresolved[]`、`found`、`teams[]`（含 `defense_names`） |
+| `character_lookup` | 角色名/黑话/uid/id → 标准角色 | `query`（可一句话多个名字）、`limit` | `matches[]`（`id` / `uid4` / `name` / `aliases`）、`unresolved[]` |
+| `portrait_identify` | 头像图 → 是谁 | `images`（路径 / bytes / base64 / data URI）、`top_k`、`min_score` | `results[]`（每张图的候选与相似度） |
 | `memory_search` | 本地记忆检索（只读） | `query`、`limit`、`scope` | `matched`、`hits[]`（含 `score`） |
 | `memory_stats` | 记忆库规模与分布 | — | 行数、`by_scope`、`by_status`、`db_bytes` |
 | `service_health` | 本机服务存活探测 | — | 每个端口的 `up` 与汇总 |
+
+阵容解析是**本地纯函数**（`tools/pcr.py`，351 个角色 / 2211 条别名的表随包分发），解析过程不出网。
+头像识别用归一化互相关（NCC）比对中间那条"脸带"，**头像包不进仓库**（游戏美术版权），
+用 `ANINEST_PCR_AVATARS` 指向你自己的 `<六位 id>.webp` 目录即可。
 
 示例（`art_search`）：
 
@@ -176,7 +194,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m unittest discover -s tests -v   # 83 tests
+python -m unittest discover -s tests -v   # 139 tests
 python eval/run_eval.py                   # 离线评测，26/26
 
 # stdio 模式（给桌面客户端用）
@@ -203,7 +221,7 @@ docker build --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-s
 ```
 
 镜像行为已实测（Docker 29.9.2，Linux 容器）：以 `uid=10001` 非 root 运行、`HEALTHCHECK`
-转 healthy、`initialize` 握手返回 `serverInfo.version = 0.2.0`、`tools/list` 返回全部 5 个工具。
+转 healthy、`initialize` 握手返回 `serverInfo.version = 0.3.0`、`tools/list` 返回全部 7 个工具。
 
 ## 看得见的验证：一条命令跑完整段对话
 
@@ -214,57 +232,72 @@ python demo/story.py
 ```
 
 它会在本机起一个假的作业服务、造一个示例记忆库，然后用**最小宿主**通过真实 MCP stdio 协议连上 server，
-把三句话依次变成工具调用，再把返回的结构化结果说成人话。实跑输出：
+把五句话依次变成工具调用，再把返回的结构化结果说成人话。实跑输出：
 
 ```text
 [story] 准备：示例记忆库 + 假作业服务
 [story] 连上 server，开始对话
 
-[host] 已连接 5 个工具：art_search、arena_lookup、memory_search、memory_stats、service_health
+[host] 已连接 7 个工具：art_search、character_lookup、portrait_identify、arena_lookup、
+       memory_search、memory_stats、service_health
 
 你   > 本机服务都活着吗
-host > 调 service_health({})
-mcp  > { "host": "127.0.0.1", "up": 5, "total": 5, "services": { ... } }
 host > 5/5 个服务在线。
 
 你   > 帮我回忆一下泳装插画那件事
-host > 调 memory_search({"query": "泳装插画那件事", "limit": 5})
-mcp  > { "scanned": 5, "matched": 1, "hits": [{ "content": "用户偏好竖构图的人物插画，尤其是海边的场景。" }] }
 host > 想起 1 条，最相关的是：「用户偏好竖构图的人物插画，尤其是海边的场景。」
 
-你   > 查一下 100141 100241 100341 100441 100541 的作业
-host > 调 arena_lookup({"def_ids": [100141, 100241, 100341, 100441, 100541], "limit": 3})
-mcp  > { "found": 2, "teams": [{ "defense": [100201, 110501, 102301, 100101, 114701], "upvotes": 1 }] }
-host > 找到 2 支队伍，最热门的是：100201 / 110501 / 102301 / 100101 / 114701（赞 1、踩 0）。
+你   > 布丁、克总、真琴、纺希、莉莎这个防守的作业
+host > 按 1号位 宫子 / 2号位 克莉丝提娜 / 3号位 真琴 / 4号位 纺希 / 5号位 莉莎 查：
+       找到 2 支队伍，最热门的是 优衣 / 香织(夏日) / 绫音 / 日和 / 矛依未(新年)（赞 1、踩 0）。
+
+你   > 布丁、克总、真琴、纺希、莉莎这个防守，把布丁换成怜，再查一次
+host > 按 1号位 怜 / 2号位 克莉丝提娜 / 3号位 真琴 / 4号位 纺希 / 5号位 莉莎 查（把 宫子 换成 怜）：
+       找到 2 支队伍，最热门的是 优衣 / 香织(夏日) / 绫音 / 日和 / 矛依未(新年)（赞 1、踩 0）。
+
+你   > 布丁和克总分别是哪个角色
+host > 对上 2 个：宫子（100701）、克莉丝提娜（107101）。
 ```
+
+加 `--verbose`（或设 `ANINEST_DEMO_VERBOSE=1`）还会打印它到底调了哪个工具、参数是什么。
 
 `demo/host.py` 只做两件事：**把一句话映射成工具名 + 参数**（`route()`），**把返回的 JSON 说成人话**（`_speak()`）。
 换成真模型做这两步，就是任何 MCP 客户端的日常。`tests/test_demo_router.py` 覆盖了这套路由（8 个用例）。
 
-> `art_search` 在 demo 里没有演，因为它要真联网抓图；联网行为由 `python eval/run_eval.py --network` 覆盖。
+> `art_search` 与 `portrait_identify` 在 demo 里没有演：前者要真联网抓图（由
+> `python eval/run_eval.py --network` 覆盖），后者要头像包（由 `scripts/live_check.py`
+> 在你配了 `ANINEST_PCR_AVATARS` 时覆盖）。
 
 ### 对着你自己的服务再验一遍
 
-demo 用的是替身，真正能说明“它在你机器上活着”的是这个脚本——它连你自己正在跑的五个服务，
+demo 用的是替身，真正能说明“它在你机器上活着”的是这个脚本——它连你自己正在跑的服务，
 逐个调一遍，打印一行结果，全过才返回 0：
 
 ```bash
-python scripts/live_check.py            # 默认 5 项全查
-python scripts/live_check.py --skip-network   # 没网时跳过 art_search
+python scripts/live_check.py                              # 默认查六项
+python scripts/live_check.py --lineup 布丁 克总 真琴        # 用角色名查作业
+python scripts/live_check.py --skip-network               # 没网时跳过 art_search
+python scripts/live_check.py --avatars demo_avatars       # 头像包就位时顺带验识图
 python scripts/live_check.py --memory-db path/to/memory.db   # 记忆库不在默认位置时
 ```
 
-在本机实测（AstrBot 全景在跑、记忆库 36 条）：
+在本机实测（Windows 11 + Python 3.13、五个服务都在跑、记忆库 37 条、头像包已就位）：
 
 ```text
-[ ok ] service_health  5/5 up
-[ ok ] memory_stats    rows=36 global=5 session=31
-[ ok ] memory_search   scanned=36 matched=2
-[ ok ] arena_lookup    found=10 defense=[100201, 110501, 102301, 100101, 114701] up=1
-[ ok ] art_search      1 image(s), 665x957 rating=safe
+tools (7): arena_lookup, art_search, character_lookup, memory_search, memory_stats, portrait_identify, service_health
+
+[ ok ] service_health    5/5 up
+[ ok ] memory_stats      rows=37 global=5 session=32
+[ ok ] memory_search     scanned=37 matched=2
+[ ok ] character_lookup  matches=2 宫子(100701)、克莉丝提娜(107101)
+[ ok ] arena_lookup      found=3 defense=[105101, 107101, 105401, 104301, 100701] up=0
+[ ok ] portrait_identify 1 portrait(s) best=宫子 score=1.0
+[ ok ] art_search        1 image(s) 2048x1050 rating=safe
 
 all checks passed
 ```
+
+`portrait_identify` 是条件项：只有设了 `ANINEST_PCR_AVATARS` 且目录里有图时才出现在列表里。
 
 ## 接入客户端
 
@@ -319,10 +352,11 @@ python scripts/mcp_smoke.py --call art_search --args '{"query":"初音未来 泳
 | `ANINEST_MCP_HOST` / `ANINEST_MCP_PORT` | `127.0.0.1` / `8765` | 仅 HTTP/SSE 模式生效 |
 | `ANINEST_BOORU_URL` | `https://safebooru.org/index.php` | 任何 Gelbooru 风格 JSON API |
 | `ANINEST_HTTP_TIMEOUT` | `15` | 秒 |
-| `ANINEST_USER_AGENT` | `aninest-mcp/0.1 (+…)` | 图站要求可识别的 UA |
+| `ANINEST_USER_AGENT` | `aninest-mcp/0.3.0 (+…)` | 图站要求可识别的 UA |
 | `ANINEST_ARENA_URL` | `http://127.0.0.1:6191` | 本机浏览器服务（持登录态） |
 | `ANINEST_MEMORY_DB` | `~/.aninest/memory.db` | 只读打开 |
 | `ANINEST_PROBE_HOST` | `127.0.0.1` | 健康探测目标 |
+| `ANINEST_PCR_AVATARS` | （空） | 头像目录 `<六位 id>.webp`；不配则 `portrait_identify` 明确报错 |
 
 ## 可靠性与安全设计
 
@@ -336,12 +370,14 @@ python scripts/mcp_smoke.py --call art_search --args '{"query":"初音未来 泳
 
 ## 本机依赖与第三方复现
 
-五个工具里，只有 `arena_lookup` 依赖一个**不属于本仓库**的本机服务（持登录态的浏览器进程，
+七个工具里，只有 `arena_lookup` 依赖一个**不属于本仓库**的本机服务（持登录态的浏览器进程，
 它的凭证属于一次具体部署，不会开源）。为了让任何人都能自己验证，仓库带了两个替身脚本：
 
 | 工具 | 依赖 | 没有依赖时怎么验证 |
 | --- | --- | --- |
 | `art_search` | 公网图站（默认 safebooru） | 直接可用 |
+| `character_lookup` | 无（角色表随包分发） | 直接可用 |
+| `portrait_identify` | 你自己的头像包 + `pip install -e ".[vision]"` | `scripts/make_demo_avatars.py --out demo_avatars` 造几张假头像 |
 | `memory_search` / `memory_stats` | 一个 SQLite 文件 | `python scripts/make_demo_db.py --out demo_memory.db` |
 | `arena_lookup` | 本机服务的 `POST /search` | `python scripts/fake_arena.py --port 6192`（同契约假数据） |
 | `service_health` | 无 | 五个端口全 down 也是合法结果 |
@@ -356,7 +392,12 @@ ANINEST_MEMORY_DB=./demo_memory.db python scripts/mcp_smoke.py --call memory_sta
 # 2) 作业查询：起假服务，再走真实 MCP stdio 调用
 python scripts/fake_arena.py --port 6192 &
 ANINEST_ARENA_URL=http://127.0.0.1:6192 python scripts/mcp_smoke.py --call arena_lookup \
-  --args '{"def_ids":[100141,100241,100341,100441,100541]}'
+  --args '{"defense":["布丁","克总","真琴"],"limit":2}'
+
+# 3) 识图：造几张合成头像，指着它跑
+python scripts/make_demo_avatars.py --out demo_avatars
+ANINEST_PCR_AVATARS=./demo_avatars python scripts/mcp_smoke.py --call portrait_identify \
+  --args '{"images":["demo_avatars/100101.png"]}'
 ```
 
 ## 评测结果
@@ -365,7 +406,7 @@ ANINEST_ARENA_URL=http://127.0.0.1:6192 python scripts/mcp_smoke.py --call arena
 
 | 指标 | 结果 |
 | --- | --- |
-| 单元测试 | **55 passed**（tagging / shape / arena / memory / health） |
+| 单元测试 | **139 passed**（tagging / shape / arena / pcr / portrait / memory / health / contract / router） |
 | 离线评测（tag 编译，26 条 golden case） | **26/26**，tag recall **1.000**，precision **1.000**，字段准确率 **1.000** |
 | 联网端到端（18 条真实请求） | **18/18 成功**，p50 **1.67 s**，p95 **1.99 s** |
 
@@ -385,7 +426,7 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 | --- | --- |
 | Python 工程化 / 包管理 | `pyproject.toml`（hatchling、可选依赖、console script）、`src/` 布局、`pip install -e ".[dev]"` |
 | 代码质量门禁 | `ruff`（E/F/I/UP/B）、`unittest`、CI 矩阵（ubuntu-24.04 / windows-2025 × 3.10/3.12/3.13） |
-| MCP / 工具调用（Tool Use） | `src/aninest/server.py`（FastMCP 注册 5 个工具 + resource + prompt） |
+| MCP / 工具调用（Tool Use） | `src/aninest/server.py`（FastMCP 注册 7 个工具 + resource + prompt） |
 | JSON Schema / 参数校验 | 工具签名 + 类型注解自动生成 schema；`validate_ids`、`normalise_rating` 做业务校验 |
 | 异步编程 | `httpx.AsyncClient`、`async def` 工具、`asyncio.run` 评测入口 |
 | 错误处理与可观测 | 统一 `ToolError`；返回结构化字段 `relaxed`/`attempt`/`score` |
@@ -394,13 +435,13 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 | HTTP 客户端与限流友好 | 单请求超时、UA 可配置、降级阶梯限制请求次数 |
 | 容器化 | `Dockerfile`（非 root、HEALTHCHECK）、`docker-compose.yml`、`.dockerignore` |
 | CI/CD | `.github/workflows/ci.yml`（lint → test → offline eval → docker build + smoke） |
-| 测试设计 | `tests/` 5 个模块 55 例，纯函数优先；`tests/context.py` 让测试无需安装即可跑 |
+| 测试设计 | `tests/` 10 个测试模块 139 例，纯函数优先；`tests/context.py` 让测试无需安装即可跑 |
 | 文档 | `README.md`、`docs/DECISIONS.md`（ADR）、`docs/ARCHITECTURE.md`（结构与改动指引）、`docs/PRIVACY.md`（数据边界）、`docs/THREAT_MODEL.md`、`docs/TESTING.md`（分层验证手册）、`CHANGELOG.md` |
 | 安全意识 | 只放行 safe 分级、零凭证、只读数据库、`docs/PRIVACY.md` 的 5 条 grep 自查 |
 
 ## 验证它
 
-五层验证的分工与逐层命令写在 [docs/TESTING.md](docs/TESTING.md)：lint → 单元测试（83 个）
+五层验证的分工与逐层命令写在 [docs/TESTING.md](docs/TESTING.md)：lint → 单元测试（139 个）
 → 离线评测（26 例）→ 替身演示 → 真机联调（`scripts/live_check.py`）。只有第 5 层能证明
 “接你自己的服务仍然工作”。
 
@@ -421,13 +462,16 @@ python eval/run_eval.py       # 离线评测
 src/aninest/
   config.py          # 环境变量 → Settings（含 5 个本地服务端口）
   tagging.py         # 中文 → booru tag 编译器（纯函数，可单测）
-  server.py          # FastMCP 注册：5 tools + 1 resource + 1 prompt
+  server.py          # FastMCP 注册：7 tools + 1 resource + 1 prompt
+  data/pcr_chars.json  # 351 个角色 / 2211 条别名（由 scripts/port_characters.py 生成）
   tools/
     art.py           # 检索 + 降级阶梯 + 分级归一化
-    arena.py         # 阵容校验 + 上游 payload 扁平化
+    arena.py         # 阵容名称化 → 作业查询 → 上游 payload 扁平化
+    pcr.py           # 角色表索引：别名 / 切分 / 排除 / 替换
+    portrait.py      # 头像 NCC 比对（可选依赖 numpy + Pillow）
     memory.py        # 只读 SQLite 检索与统计
     health.py        # TCP 探活
-tests/               # 83 个 unittest
+tests/               # 139 个 unittest
 eval/                # golden set + 离线/联网评测脚本
 scripts/             # 不依赖客户端的自检脚本
 docs/                # ADR、隐私自查
@@ -438,7 +482,7 @@ docs/                # ADR、隐私自查
 - [ ] 图站适配层：把 konachan / yande.re（Moebooru）加入 `ANINEST_BOORU_URL` 的等价实现
 - [ ] `art_search` 返回缩略图 base64（省一次客户端下载）
 - [ ] 记忆检索升级为 embedding（保留现有打分作为降级路径）
-- [ ] `arena_lookup` 增加"按角色名查询 id"的辅助工具
+- [x] `arena_lookup` 支持按角色名/黑话查询（`character_lookup` + 本地角色表）
 - [ ] HTTP 模式加 Bearer 鉴权（当前仅监听 127.0.0.1）
 
 ## License

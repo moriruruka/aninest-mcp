@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aninest-mcp"
-version = "0.2.1"
-description = "AniNest: an MCP server that nests an ACG-loving assistant's local capabilities (illustration search, game cheat-sheet lookup, memory retrieval, service health) behind five tools."
+version = "0.3.0"
+description = "AniNest: an MCP server that nests an ACG-loving assistant's local capabilities (illustration search, game lineup lookup by name or portrait, memory retrieval, service health) behind seven tools."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -24,7 +24,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff>=0.6", "pytest>=8"]
+# Portrait matching needs PIL to decode and numpy for the correlation. Both are
+# optional so a text-only install stays small; without them the tool explains itself.
+vision = ["numpy>=1.26", "Pillow>=10"]
+dev = ["ruff>=0.6", "pytest>=8", "numpy>=1.26", "Pillow>=10"]
 
 [project.urls]
 Homepage = "https://github.com/moriruruka/aninest-mcp"

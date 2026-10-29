@@ -2,6 +2,53 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] - 2026-10-29
+
+### Added
+
+- `character_lookup(query, limit=5)`：把玩家嘴里的叫法（`布丁`、`克总`、四位数 `1007`、六位 `100701`、日文名、
+  英文名、别名词）映射到标准角色，一句话里用 `、，和与及` 或空格就能问多个。纯本地匹配、不出网：角色表随包分发
+  （`src/aninest/data/pcr_chars.json`，351 个角色 / 2211 条别名，由 `scripts/port_characters.py` 生成）。
+- `portrait_identify(images, top_k=3, min_score=0.55)`：给一张**已经裁好**的人像/头像，用归一化互相关比对中间那条
+  "脸带"（3 个裁剪视窗）回答是哪个角色，低于 `min_score` 视为未知；`images` 接受文件路径、裸 bytes、base64、data URI。
+  头像包因为游戏美术版权不随仓库分发，用 `ANINEST_PCR_AVATARS` 指向自己的 `<六位 id>.webp` 目录；
+  需要可选依赖 `pip install -e ".[vision]"`（numpy + Pillow）。
+- `arena_lookup` 支持**按名字查作业**：`defense` 可以直接写角色名 / 黑话 / 四位 uid / 六位 id，字符串或数组都行。
+  在此之前要先自己把名字换成六位 id，玩家侧的叫法（`布丁`）根本进不来。
+- 同一次调用里就能**排除或替换**一个角色再查：`exclude` 先拿掉某人，`replace` 支持 `"布丁->怜"` / `"布丁→怜"` /
+  `"布丁 换成 怜"` / `{"from": …, "to": …}`。省掉"查不到作业 → 手工改 id → 再查"的来回。
+- `scripts/make_demo_avatars.py`：没有真实素材时生成 5 张合成头像（100101 / 100201 / 100301 / 100701 / 107101），
+  让识图链路任何人都能复现——之前这一步必须有游戏素材才能试。
+- `scripts/live_check.py` 新增 `--lineup 布丁 克总 真琴`（按名字查作业）与 `--avatars <目录>`（顺带验 `portrait_identify`）。
+
+### Changed
+
+- `arena_lookup` 的入参与返回：除 `def_ids` 外新增 `defense` / `exclude` / `replace`；返回新增 `lineup[]`
+  （把输入理解成了哪 5 个人）、`applied[]`（实际做了哪次排除/替换、换了哪个号位）、`unresolved[]`
+  （没认出来的词 + 候选建议）；`teams[]` 新增 `defense_names` / `attack_names`，同时保留 `defense` / `attack`（id），
+  宿主可以直接对着人说人话。
+- `ANINEST_PCR_AVATARS` 现在和其他配置一样从 `config.Settings` 读（`portrait` 仍兼容直接读环境变量），
+  文档里七个环境变量与代码一一对应。
+- 工具数量 5 → 7（`tools/list` 与契约测试同步）；README、USAGE 的工具表、模块表、测试数按七个工具重写。
+- 版本号 0.2.1 → 0.3.0（`version.py` 与 `pyproject.toml` 同步）；测试 83 → 139（10 个测试模块，新增
+  `test_pcr_chars.py`、`test_arena_names.py`、`test_portrait.py`）。
+
+### Fixed
+
+- `portrait_identify` 第一次调用要卡约 15 秒：numpy / Pillow 原先在工具调用里才 import，而工具跑在工作线程、
+  主线程正阻塞在 stdio 读上，两边抢 import 锁。改为模块加载时（启动阶段、主线程）就导入，首次调用立即返回。
+- `布丁和克总` 这类用「和 / 与 / 及」连写的句子，只有在**整串认不出**时才按连接词拆；否则 `日和` 这种名字里带
+  「和」的角色会被拆成两半。
+- 阵容人数统一按 5 校验：解析阶段多给的名字会被截掉并在返回里标 `truncated`，`validate_ids` 也只接受 5 个。
+- 角色表装进 wheel 后读不出来：`src/aninest/data/` 少了 `__init__.py`，`importlib.resources` 在 3.10 上
+  找不到它。补成真正的子包，并用干净 venv 装 wheel 复验（`351 角色 / 2211 别名`）。
+- 在中文 Windows 控制台（cp936）上跑 `scripts/mcp_smoke.py` 会崩：角色别名里有 emoji（如宫子的 `🍮`），
+  `print` 时 `UnicodeEncodeError`。`mcp_smoke.py` / `live_check.py` / `make_demo_avatars.py` 现在
+  启动时把 stdout/stderr 切到 UTF-8（`errors="replace"`），与 `demo/story.py` 一致。
+- `scripts/port_tags.py` 里残留了作者本机的绝对路径作为默认源；删除该默认值，只认 `--source` 或
+  `ANINEST_TAG_SOURCE`，避免把某台机器的目录结构带进仓库。
+- `server.py` 的 `INSTRUCTIONS` 开头写着「Eight capabilities」，实际是 7 个工具；改为 Seven。
+
 ## [0.2.1] - 2026-10-29
 
 ### Added

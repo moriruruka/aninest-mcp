@@ -89,6 +89,14 @@ class SummariseTests(unittest.TestCase):
         payload = {"result": ["nope", {"atk": [{"id": 100101}]}]}
         self.assertEqual(summarise(payload)["found"], 1)
 
+    def test_summarise_includes_names(self) -> None:
+        raw = FIXTURE.read_text(encoding="utf-8")
+        payload = json.loads(raw)
+        data = summarise(payload, limit=1)
+        team = data["teams"][0]
+        self.assertEqual(len(team["defense_names"]), len(team["defense"]))
+        self.assertTrue(all(isinstance(name, str) and name for name in team["defense_names"]))
+
 
 if __name__ == "__main__":
     unittest.main()

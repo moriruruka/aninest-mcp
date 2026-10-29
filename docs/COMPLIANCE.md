@@ -10,12 +10,12 @@
 | 规范项 | 状态 | 证据 |
 | --- | --- | --- |
 | `initialize` 与版本协商 | 已符合 | 握手返回 `protocolVersion = 2025-11-25` |
-| `serverInfo` 的 name / version | 已符合 | `aninest-mcp` / `0.2.0`（`src/aninest/version.py`，并在 `server.py` 里覆盖了 SDK 默认值） |
-| `tools/list` 与 `inputSchema` | 已符合 | 5 个工具，schema 由类型注解 + docstring 生成（`tests/test_server_contract.py` 断言每个工具都带 schema） |
+| `serverInfo` 的 name / version | 已符合 | `aninest-mcp` / `0.3.0`（`src/aninest/version.py`，并在 `server.py` 里覆盖了 SDK 默认值） |
+| `tools/list` 与 `inputSchema` | 已符合 | 7 个工具，schema 由类型注解 + docstring 生成（`tests/test_server_contract.py` 断言每个工具都带 schema） |
 | `tools/call` 的 `isError` 语义 | 已符合 | 业务错误抛 `ToolError` → 客户端收到 `isError: true`；记忆库不存在时实测如此 |
 | `structuredContent` | 已符合 | 每次调用同时给文本 JSON 与结构化结果（`test_server_contract.py` 第二组用例） |
-| 工具 `title`（人类可读名） | 已符合 | `Illustration search` / `Arena lineup lookup` / `Memory search` / `Memory store stats` / `Service health` |
-| 工具 `annotations` | 已符合 | 5 个工具全部 `readOnlyHint=true`、`destructiveHint=false`；`art_search`、`arena_lookup` 额外 `openWorldHint=true`（结果依赖外部系统），记忆类 `idempotentHint=true` |
+| 工具 `title`（人类可读名） | 已符合 | `Illustration search` / `Character lookup` / `Portrait identification` / `Arena lineup lookup` / `Memory search` / `Memory store stats` / `Service health` |
+| 工具 `annotations` | 已符合 | 7 个工具全部 `readOnlyHint=true`、`destructiveHint=false`；`art_search`、`arena_lookup` 额外 `openWorldHint=true`（结果依赖外部系统），本地类（角色表、头像包）不开 `openWorldHint`，记忆类 `idempotentHint=true` |
 | `resources/list` + `resources/read` | 已符合 | `aninest://memory/stats` |
 | `prompts/list` + `prompts/get` | 已符合 | `find_illustration` |
 | 服务级 `instructions` | 已符合 | 启动时下发给宿主，说明"先调 `service_health`" |
@@ -44,7 +44,7 @@
 ```bash
 python scripts/mcp_smoke.py                 # 真实握手 + tools/list
 python scripts/mcp_smoke.py --call service_health
-python scripts/live_check.py                # 五个工具逐个调真服务
+python scripts/live_check.py                # 七个工具逐个调真服务（识图是条件项）
 python -m unittest discover -s tests        # 契约与纯函数
 ```
 
