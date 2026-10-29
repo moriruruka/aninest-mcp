@@ -2,7 +2,7 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.2.1] - 2026-10-29
 
 ### Added
 
@@ -12,8 +12,19 @@
 - `docs/COMPLIANCE.md`：逐项列出"已符合 / 有意不做 / 还能加固"，每条都给出可复验的证据与命令。
 - `tests/test_server_contract.py`：7 个契约用例，锁住工具清单、schema、title、annotations、
   resource 与 prompt，防止后续改动悄悄丢掉这些字段。
-- README 增「只想要命令行：从 GitHub 直接装」——`pip install "git+https://github.com/moriruruka/aninest-mcp.git"`，
-  附 2026-10-29 在全新 venv 的实测记录（装出 0.2.0、握手协商 `2025-11-25`、5 个工具、`service_health` 5/5）。
+- **一键安装脚本**：`install.cmd`（Windows 双击）/ `install.ps1` / `install.sh`。
+  自建独立 venv（不碰系统 Python）→ 装依赖 → 自己跑一次 MCP 握手自检 → 打印可直接粘贴的客户端配置；
+  支持 `-Mirror`（国内镜像）、`-MemoryDb`、`-WriteClaudeConfig`（合并写入并备份原配置）、`-Upgrade`。
+  在 Windows 11 + Python 3.13 实测：装出 0.2.1，握手 `protocol=2025-11-25`、5 个工具，退出码 0。
+- **面向使用者的文档**：`docs/INSTALL.md`（四条安装路径 + 客户端配置 + 装不上排查表）、
+  `docs/USAGE.md`（每个工具怎么问、参数含义、返回字段、常见报错、环境变量、FAQ）。
+- README 改成"先给结论"的结构：30 秒上手三条路、五个工具对照表（示例问句）、文档地图；
+  开发细节下移，重复的安装段落合并到 `docs/INSTALL.md`。
+
+### Changed
+
+- 版本号 0.2.0 → 0.2.1（`version.py` 与 `pyproject.toml` 同步；sdist 里带上 `scripts/` 与安装脚本）。
+- 文档里的测试数量统一为当前真实值（83），不再出现 65/67/76 等历史数字。
 
 ### Fixed
 

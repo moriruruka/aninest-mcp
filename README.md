@@ -4,39 +4,65 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> **AniNest**（Ani = Anime/ACG，Nest = 巢）：把一个二次元向 AI 助手的本事装进一个巢——
-> 查竞技场作业、按中文描述找插画、读本地记忆、看本地服务是否在线——再用
-> **MCP（Model Context Protocol，模型上下文协议）** 交给任何宿主调用。
-> 巢是会长大的：加一个新插件，就多一根新的枝条。
+把一个二次元向 AI 助手的本事，装进一个能被任何宿主调用的巢。
 
-它把"只有本机能做"的能力暴露成协议级工具。任何支持 MCP 的宿主——桌面 Agent、编辑器、自研客户端——
-都能发现并调用这五个工具，而不用知道背后是哪个图站、哪个本地服务、哪个游戏。
+查竞技场作业 · 按中文描述找插画 · 检索本地记忆 · 探活本机服务 —— 四个领域、五个工具，走
+**MCP（Model Context Protocol，模型上下文协议）**。宿主可以是桌面 Agent、编辑器插件、自研客户端，
+它们不需要知道背后是哪个图站、哪个本地服务、哪个游戏。
 
-> 它不是又一个"封装 API 的 demo"：包含 tag 编译器、检索降级阶梯、只读 SQLite 检索、本地服务探活，
-> 有 65 个单元测试和一套可回归的评测集，CI 在 Linux/Windows × Python 3.10/3.12/3.13 上跑。
+## 30 秒上手
 
----
+**Windows，不想碰命令行**：下载 ZIP 解压 → 双击 `install.cmd`。脚本会建独立环境、装依赖、
+自测一次握手，并把可直接粘贴的客户端配置打印出来。
 
-## 目录
+```powershell
+# 也可以自己在 PowerShell 里跑（加 -WriteClaudeConfig 会顺手写好 Claude Desktop 配置）
+.\install.ps1 -Mirror https://pypi.tuna.tsinghua.edu.cn/simple
+```
 
-- [它解决什么问题](#它解决什么问题)
-- [来历：从私有助手拆出来的能力层](#来历从私有助手拆出来的能力层)
-- [架构](#架构)
-- [五个工具](#五个工具)
-- [快速开始](#快速开始)
-- [看得见的验证：一条命令跑完整段对话](#看得见的验证一条命令跑完整段对话)
-- [接入客户端](#接入客户端)
-- [配置项](#配置项)
-- [可靠性与安全设计](#可靠性与安全设计)
-- [评测结果](#评测结果)
-- [实现对照（能力 → 代码位置）](#实现对照能力--代码位置)
-- [开发](#开发)
-- [数据边界与隐私](docs/PRIVACY.md)
-- [设计取舍](docs/DECISIONS.md)
-- [威胁模型：它能动什么、谁能让它动](docs/THREAT_MODEL.md)
-- [代码结构与改动指引](docs/ARCHITECTURE.md)
-- [怎么验证它真的能用](docs/TESTING.md)
-- [MCP 规范符合性：已符合 / 不做 / 还能加固](docs/COMPLIANCE.md)
+**任何系统，习惯命令行**：
+
+```bash
+pip install "git+https://github.com/moriruruka/aninest-mcp.git"
+```
+
+**容器**：
+
+```bash
+docker build -t aninest-mcp . && docker run --rm -p 127.0.0.1:8765:8765 aninest-mcp
+```
+
+装完做一件事：告诉客户端去启动 `aninest-mcp`（或 `python -m aninest`）。
+完整步骤、镜像加速、卸载、装不上的排查表都在 **[安装说明](docs/INSTALL.md)**。
+
+> 本仓库没有发布到 PyPI，`pip install aninest-mcp` 会 404；上面这条 git URL 才是官方装法。
+
+## 五个工具
+
+| 工具 | 你大概会这么问 | 返回 |
+| --- | --- | --- |
+| `art_search` | "来两张初音未来泳装的竖图" | 图片链接 + 用到的 tag + 是否放宽过条件 |
+| `arena_lookup` | "这队作业查一下：100141 100241 100341 100441 100541" | 别人用的防守/进攻阵容与票数 |
+| `memory_search` | "上次说的那个配色偏好还记得吗" | 记忆条目 + 打分 + 范围（本会话/全局） |
+| `memory_stats` | "你的记忆存了多少了" | 行数、范围分布、库大小 |
+| `service_health` | "服务都活着吗" | 五个本地端口的连通性 |
+
+怎么问、参数怎么填、返回字段什么意思、常见报错怎么办：**[使用说明](docs/USAGE.md)**。
+五个工具全是**只读**：不写你的数据、不发消息、不动账号。
+
+## 文档地图
+
+| 想了解 | 看这里 |
+| --- | --- |
+| 装不上 / 想装得干净 | [docs/INSTALL.md](docs/INSTALL.md) |
+| 怎么用、参数、返回、报错 | [docs/USAGE.md](docs/USAGE.md) |
+| 它为什么存在、从哪来 | [docs/ORIGIN.md](docs/ORIGIN.md)、[与助手实现逐项对照](docs/PORTING.md) |
+| 代码结构、改哪里 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| 怎么证明它真能用 | [docs/TESTING.md](docs/TESTING.md) |
+| 能碰什么、谁能让它动 | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) |
+| 哪些数据不出去 | [docs/PRIVACY.md](docs/PRIVACY.md) |
+| 设计取舍（ADR） | [docs/DECISIONS.md](docs/DECISIONS.md) |
+| 符合 MCP 规范到什么程度 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) |
 
 ---
 
@@ -106,7 +132,7 @@ flowchart LR
                    └─────────────────┘  └─────────────┘  └────────────────┘
 ```
 
-## 五个工具
+## 五个工具（参数与返回细节）
 
 | 工具 | 作用 | 关键参数 | 返回 |
 | --- | --- | --- | --- |
@@ -140,7 +166,7 @@ flowchart LR
 }
 ```
 
-## 快速开始
+## 本地开发环境
 
 ```bash
 git clone https://github.com/moriruruka/aninest-mcp.git
@@ -159,21 +185,6 @@ aninest-mcp
 # 或 Streamable HTTP 模式
 ANINEST_MCP_TRANSPORT=streamable-http ANINEST_MCP_PORT=8765 aninest-mcp
 ```
-
-### 只想要命令行：从 GitHub 直接装（已实测）
-
-不打算改代码的话，不必 clone，一条命令装进任意 Python 环境：
-
-```bash
-pip install "git+https://github.com/moriruruka/aninest-mcp.git"
-aninest-mcp          # 默认 stdio 模式，等客户端连上来
-```
-
-- 国内网络慢或超时，加镜像：`pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "git+https://github.com/moriruruka/aninest-mcp.git"`。
-- 实测（2026-10-29，Windows 11，Python 3.13.9 + pip 25.2，一个全新 venv）：装出 `aninest_mcp-0.2.0`，
-  `Scripts\aninest-mcp.exe` 可直接启动；MCP 握手协商到 `protocol=2025-11-25`，
-  `serverInfo = aninest-mcp 0.2.0`，`tools/list` 返回 5 个工具，`service_health` 返回 5/5。
-- 本仓库**没有发布到 PyPI**（作者的选择），所以 `pip install aninest-mcp` 会 404；上面这条 git URL 才是官方安装方式。
 
 Docker：
 
