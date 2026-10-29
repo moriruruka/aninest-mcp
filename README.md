@@ -76,7 +76,10 @@ flowchart LR
     S --> E["本机 5 个服务端口"]
 ```
 
-完整来历、以及“哪些东西刻意没有开源”见 [docs/ORIGIN.md](docs/ORIGIN.md)。
+完整来历、以及“哪些东西刻意没有开源”见 [docs/ORIGIN.md](docs/ORIGIN.md)；
+**与助手实现逐项对照**（哪些原样搬、哪些简化、哪些改掉）见 [docs/PORTING.md](docs/PORTING.md)——
+中文 tag 词典、角色表、礼貌词表与黑名单是整表移植的（171 / 56 / 39 / 26 / 19 条），
+所以同一句中文在助手和这个 server 上会得到同一组 tag。
 
 ## 架构
 
@@ -221,6 +224,7 @@ demo 用的是替身，真正能说明“它在你机器上活着”的是这个
 ```bash
 python scripts/live_check.py            # 默认 5 项全查
 python scripts/live_check.py --skip-network   # 没网时跳过 art_search
+python scripts/live_check.py --memory-db path/to/memory.db   # 记忆库不在默认位置时
 ```
 
 在本机实测（AstrBot 全景在跑、记忆库 36 条）：
@@ -253,8 +257,23 @@ all checks passed
 }
 ```
 
-**DSH / 其他支持 MCP 的宿主**：把 `aninest` 作为 stdio 服务器加入其 MCP 配置（命令 `aninest-mcp`，或用
-`python -m aninest`），也可用 `ANINEST_MCP_TRANSPORT=streamable-http` 后按 URL `http://127.0.0.1:8765/mcp` 接入。
+**DSH（DeepSeek Harness）**：它的 MCP 客户端按“一台服务器一条配置项”装配，把下面几条加到你的
+profile 的 `cordis.patch.yml` 里，重启后工具会以 `mcp__aninest__art_search` 这样的名字出现：
+
+```yaml
+- id: mcp-aninest
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: aninest            # 工具前缀，命名空间内唯一
+    transport: stdio
+    command: python
+    args: ['-m', 'aninest']        # 或 ['-m', 'aninest.server'] / 直接 'aninest-mcp'
+    env:
+      ANINEST_MEMORY_DB: 'C:/Users/you/.aninest/memory.db'
+```
+
+（远端部署可以改成 `transport: streamable-http` + `url: http://127.0.0.1:8765/mcp` + 可选 `headers`。）
+其他支持 MCP 的宿主同理：把 `aninest` 当成一个 stdio 服务器登记即可。
 
 **自检脚本**（不需要任何客户端）：
 

@@ -2,10 +2,22 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.2.0] - 2026-10-29
+
+### Changed
+
+- **中文词典、角色表、礼貌词表与黑名单改为整表移植自助手实现**（171 条别名 / 56 个角色 /
+  39 条礼貌词 / 26 条英文黑名单 / 19 条中文黑名单），替换掉此前手写的约 60 条小词表。
+  两者现在对同一句中文给出同一组 tag；移植结果由 `scripts/port_tags.py` 生成，可复现。
+- 补了 11 个助手词典里没有、但本工具原先支持的词（死库水、水手服、夜空、蓝眼、红眼、
+  赛博朋克、腿环、裙、游戏、风景、洛天依），避免移植后能力反而变窄。
+- `eval/art_cases.json` 的期望值对齐助手侧的规范拼写（`flowers`、`blonde_hair`、`beach`）。
+- 单测 65 → 76：新增词典规模断言（防“改漏”）、`图书馆` 回归、以及 11 条移植用例。
 
 ### Fixed
 
+- 礼貌词原先**在别名匹配之前**就被剥离，导致「图书馆」中的「图」被吃掉、剩下「书馆」成了未知词
+  （助手侧同样存在，已在 `docs/PORTING.md` 记录）。
 - `arena_lookup` 原本接受 1–6 个角色 id，但游戏里一队只有 5 人：上限改为 **5 个不重复 id**
   （去重后才计数量，部分阵容仍合法），并同步工具描述、README 与威胁模型。
 - `arena_lookup` 读取的是**上游真实结构**，此前按臆想的扁平行解析（`defense`/`attack`/`views`），
@@ -16,6 +28,9 @@
 
 ### Added
 
+- `scripts/port_tags.py`：从助手的 `tagging.py` 导出词典表（找不到源文件就报错，不写空表）。
+- `docs/PORTING.md`：与助手实现的逐项对照（原样搬 / 简化 / 有意改掉 / 没搬）。
+- README 增「与助手词典的关系」入口与 **DSH 的 MCP 配置示例**（`dsh-mcp-client` 装配片段）。
 - `scripts/live_check.py`：对着**本机真实运行的服务**做端到端检查——真实 MCP stdio 起 server，
   逐个调五个工具并打印一行结果，全过才返回 0；带 `--skip-network`、`--ids`。
 - `docs/TESTING.md`：分层验证手册（lint → 单测 → 离线评测 → 替身演示 → 真机联调），

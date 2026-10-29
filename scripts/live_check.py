@@ -6,6 +6,7 @@ running on this machine and tells you, tool by tool, whether it still works.
     python scripts/live_check.py
     python scripts/live_check.py --ids 100101 100201      # optional defence lineup
     python scripts/live_check.py --skip-network           # no internet, skip art_search
+    python scripts/live_check.py --memory-db path/to/memory.db   # 指定记忆库
 
 Exit code is 0 only when every checked tool passed, so it is safe to use in a smoke run.
 """
@@ -82,8 +83,10 @@ def _check_art(payload: dict) -> str:
     return f"{len(images)} image(s) {size} rating={first.get('rating')}"
 
 
-async def run(ids: list[int], skip_network: bool) -> int:
+async def run(ids: list[int], skip_network: bool, memory_db: str | None = None) -> int:
     env = dict(os.environ)
+    if memory_db:
+        env["ANINEST_MEMORY_DB"] = str(Path(memory_db).expanduser().resolve())
     env.setdefault("PYTHONPATH", str(ROOT / "src"))
     params = StdioServerParameters(
         command=sys.executable, args=["-m", "aninest"], env=env, cwd=str(ROOT)
@@ -140,8 +143,11 @@ def main() -> int:
         "--ids", type=int, nargs="+", default=DEFAULT_IDS, help="defence lineup ids"
     )
     parser.add_argument("--skip-network", action="store_true", help="skip art_search")
+    parser.add_argument(
+        "--memory-db", help="path to the assistant's memory.db (overrides ANINEST_MEMORY_DB)"
+    )
     options = parser.parse_args()
-    return asyncio.run(run(options.ids, options.skip_network))
+    return asyncio.run(run(options.ids, options.skip_network, options.memory_db))
 
 
 if __name__ == "__main__":
