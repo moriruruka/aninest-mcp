@@ -1,4 +1,4 @@
-﻿# AniNest · aninest-mcp
+# AniNest · aninest-mcp
 
 [![CI](https://github.com/moriruruka/aninest-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/moriruruka/aninest-mcp/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
@@ -251,7 +251,7 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 | 能力 / 关键词 | 在本仓库的落点 |
 | --- | --- |
 | Python 工程化 / 包管理 | `pyproject.toml`（hatchling、可选依赖、console script）、`src/` 布局、`pip install -e ".[dev]"` |
-| 代码质量门禁 | `ruff`（E/F/I/UP/B）、`unittest`、CI 矩阵（Linux+Windows × 3.10/3.12/3.13） |
+| 代码质量门禁 | `ruff`（E/F/I/UP/B）、`unittest`、CI 矩阵（ubuntu-24.04 / windows-2025 × 3.10/3.12/3.13） |
 | MCP / 工具调用（Tool Use） | `src/aninest/server.py`（FastMCP 注册 5 个工具 + resource + prompt） |
 | JSON Schema / 参数校验 | 工具签名 + 类型注解自动生成 schema；`validate_ids`、`normalise_rating` 做业务校验 |
 | 异步编程 | `httpx.AsyncClient`、`async def` 工具、`asyncio.run` 评测入口 |

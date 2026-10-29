@@ -36,6 +36,12 @@
 - CI 的 Docker 冒烟步骤原先用 heredoc 喂 stdin，未加 `-i` 时容器读不到脚本、等于空跑；改为
   `--entrypoint python -c "…"`，断言失败会真正让任务变红。
 
+### Changed
+
+- CI 升到 `actions/checkout@v7` 与 `actions/setup-python@v7`（消除 Node.js 20 弃用告警），
+  运行器标签由 `ubuntu-latest` / `windows-latest` 固定为 `ubuntu-24.04` / `windows-2025`，
+  避免镜像滚动（Ubuntu 26 迁移）带来的意外变更。
+
 ### Known limitations
 
 - 依赖锁定 `mcp>=1.20,<2`：2.x 把 `FastMCP` 改名为 `MCPServer`，迁移需同步改工具注册与 `ToolError` 导入。
