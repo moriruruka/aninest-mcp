@@ -19,7 +19,7 @@
 ```
 
 - `ANINEST_PCR_AVATARS` 只有想用 `portrait_identify` 时才需要：指向一个放头像的目录，
-  文件名是 `<六位角色 id>.webp/.png/.jpg`。不配这个变量，其余六个工具照常工作。
+  文件名是 `<六位角色 id>.webp/.png/.jpg`。不配这个变量，其余九个工具照常工作。
 - 想识图还要装可选依赖：`pip install -e ".[vision]"`（numpy + Pillow）。
 
 - Claude Desktop：配置文件名 `claude_desktop_config.json`（见同目录示例）。

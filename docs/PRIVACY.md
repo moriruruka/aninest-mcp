@@ -1,6 +1,6 @@
 # 数据边界与隐私（Data boundary）
 
-AniNest 是一个**无状态的能力层**：它只做「编译 tag、发一个 HTTP 请求、只读查询一个 SQLite 文件、看一眼本地角色表与头像包、连一下本地端口」这几类动作。
+AniNest 是一个**无状态的能力层**（唯一例外：`character_update` / `character_correct` 会写本地覆盖层，见第 2 节）：它只做「编译 tag、发一个 HTTP 请求、只读查询一个 SQLite 文件、读本地角色表与头像包、连一下本地端口」这几类动作。
 下面把「它碰什么、不碰什么、数据往哪去」写清楚，便于部署前评估。
 
 ## 1. 不保存、不上传
@@ -20,7 +20,7 @@ AniNest 是一个**无状态的能力层**：它只做「编译 tag、发一个 
 模型参数 ──► 本进程 ──► ①图站 HTTP API（只出站，只带 query 串）
                      ├─► ②本机服务的 /search（只出站，不带凭证）
                      ├─► ③本地 SQLite（只读）
-                     ├─► ④本地角色表 `data/pcr_chars.json`（随包分发，纯本地）
+                     ├─► ④本地角色表 `data/pcr_chars.json` + 覆盖层（随包分发，写只写覆盖层）
                      └─► ⑤本地头像包 `ANINEST_PCR_AVATARS`（只读）
 ```
 
@@ -28,7 +28,9 @@ AniNest 是一个**无状态的能力层**：它只做「编译 tag、发一个 
 - **只读打开数据库**：`file:...?mode=ro` 由 SQLite 层直接拒绝写操作，工具不会修改记忆库。
 - **识图不外传**：`portrait_identify` 的图片和头像包都只在本进程内比对，不请求任何远端服务；
   它接受的文件路径由宿主传入，所以宿主要自己决定给不给它读任意路径。
-- **不落盘**：除部署者显式指定 `--json` 把评测结果写到本地文件外，工具不写任何文件。
+- **只写一个本地文件**：唯一落盘的是 `character_update` / `character_correct` 写的 `ANINEST_PCR_OVERLAY`
+  （默认 `~/.aninest/pcr_overlay.json`，临时文件 + 原子替换，可随时删掉）；包内表与记忆库都写不进去。
+  除此之外，除部署者显式指定 `--json` 把评测结果写到本地文件外，工具不写任何文件。
 
 ## 3. fork 或二次发布前的自查
 
@@ -60,9 +62,11 @@ git log -p --all | grep -niE "sessdata|bili_jct|password" | head
 
 ## 5. 本仓库当前状态
 
-- [x] `python -m unittest discover -s tests` 全绿（139 tests OK，没装 `[vision]` 时 11 例跳过）
+- [x] `python -m unittest discover -s tests` 全绿（162 tests OK，没装 `[vision]` 时 11 例跳过）
 - [x] 头像包（游戏美术素材）不进仓库：它由 `ANINEST_PCR_AVATARS` 指向使用者自己的目录；仓库里只有
       `scripts/make_demo_avatars.py` 生成的合成头像
+- [x] 本地覆盖层（`ANINEST_PCR_OVERLAY`，默认 `~/.aninest/pcr_overlay.json`）只存名字、别名、
+      更正备注，不含凭证；它在家目录，不在仓库里
 - [x] `python eval/run_eval.py` 全绿（离线，26/26）
 - [x] `git status` 中没有 `data/`、`logs/`、`.env`、`*.db`
 - [x] 上述 5 条 grep 已逐条核对（无真实号码、凭证、绝对路径、内网地址）

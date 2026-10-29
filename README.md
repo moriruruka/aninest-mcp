@@ -7,7 +7,7 @@
 把一个二次元向 AI 助手的本事，装进一个能被任何宿主调用的巢。
 
 按名字查竞技场作业 · 按中文描述找插画 · 用名字或头像认角色 · 检索本地记忆 · 探活本机服务 ——
-五个领域、七个工具，走
+五个领域、十个工具，走
 **MCP（Model Context Protocol，模型上下文协议）**。宿主可以是桌面 Agent、编辑器插件、自研客户端，
 它们不需要知道背后是哪个图站、哪个本地服务、哪个游戏。
 
@@ -38,7 +38,7 @@ docker build -t aninest-mcp . && docker run --rm -p 127.0.0.1:8765:8765 aninest-
 
 > 本仓库没有发布到 PyPI，`pip install aninest-mcp` 会 404；上面这条 git URL 才是官方装法。
 
-## 七个工具
+## 十个工具
 
 | 工具 | 你大概会这么问 | 返回 |
 | --- | --- | --- |
@@ -49,6 +49,9 @@ docker build -t aninest-mcp . && docker run --rm -p 127.0.0.1:8765:8765 aninest-
 | `memory_search` | "上次说的那个配色偏好还记得吗" | 记忆条目 + 打分 + 范围（本会话/全局） |
 | `memory_stats` | "你的记忆存了多少了" | 行数、范围分布、库大小 |
 | `service_health` | "服务都活着吗" | 五个本地端口的连通性 |
+| `character_match` | "宫紫 是哪个角色"（表里没有） | 按名字相似度排的候选、分数（0–1）、命中方式 |
+| `character_update` | "日服刚出的新角色，加一下" | 写本地覆盖层，返回角色与新增/移除的别名 |
+| `character_correct` | "宫紫 就是宫子，记住" | 把这个词记成别名，并留一条带时间的更正记录 |
 
 阵容可以直接说人话：**角色名、黑话、四位数 uid、六位 id 混着写都行**（`布丁 克总 100301`），
 一队 5 人；查不到作业时，同一次调用就能带上"排除某角色"或"把 A 换成 B"再查：
@@ -59,7 +62,16 @@ docker build -t aninest-mcp . && docker run --rm -p 127.0.0.1:8765:8765 aninest-
 ```
 
 怎么问、参数怎么填、返回字段什么意思、常见报错怎么办：**[使用说明](docs/USAGE.md)**。
-七个工具全是**只读**：不写你的数据、不发消息、不动账号。
+前七个工具**只读**：不写你的数据、不发消息、不动账号。`character_update` 与 `character_correct`
+只写本地覆盖层 `~/.aninest/pcr_overlay.json`（`ANINEST_PCR_OVERLAY` 可改路径），
+不碰随包分发的角色表、记忆库和网络；`character_match` 仍然只读。
+
+### 保持角色表是新的（Keeping the character table current）
+
+新角色一般先在日服上线，中文译名和黑话要过一阵才有人用。拿到日文名就先 `character_update(jp="ミヤコ")`，
+把六位 id 和日文名登记进去，`character_lookup` / `character_match` 马上能按日文名查到。
+查错了不必新建角色：先 `character_match` 看候选和分数，让用户挑，再 `character_correct(term, char_id)` 记住这个叫法。
+两处改动都只写本地覆盖层，随包分发的 `src/aninest/data/pcr_chars.json` 不动，升级也不会被覆盖。
 
 ## 文档地图
 
@@ -94,7 +106,7 @@ MCP 把它们变成**协议级工具**：
 
 ## 来历：从私有助手拆出来的能力层
 
-这七个工具不是为写示例而写的，它们原本长在一个**私有**的个人助手里（自己电脑上的 QQ 聊天助手），
+这十个工具不是为写示例而写的，它们原本长在一个**私有**的个人助手里（自己电脑上的 QQ 聊天助手），
 和消息格式、人设、账号登录态缠在一起。把它们抽成协议级工具之后，能力才第一次能被别的宿主复用、被单独测试、被回归评测。
 
 ```mermaid
@@ -103,7 +115,7 @@ flowchart LR
         A["聊天助手<br/>消息 / 人设 / 语音"]
     end
     subgraph pub["AniNest（本仓库）"]
-        S["MCP server<br/>7 tools + 1 resource + 1 prompt"]
+        S["MCP server<br/>10 tools + 1 resource + 1 prompt"]
         H["最小宿主 demo/host.py<br/>演示与测试用"]
     end
     A -- "MCP（stdio / HTTP）" --> S
@@ -144,7 +156,7 @@ flowchart LR
                    └─────────────────┘  └─────────────┘  └────────────────┘
 ```
 
-## 七个工具（参数与返回细节）
+## 十个工具（参数与返回细节）
 
 | 工具 | 作用 | 关键参数 | 返回 |
 | --- | --- | --- | --- |
@@ -155,8 +167,11 @@ flowchart LR
 | `memory_search` | 本地记忆检索（只读） | `query`、`limit`、`scope` | `matched`、`hits[]`（含 `score`） |
 | `memory_stats` | 记忆库规模与分布 | — | 行数、`by_scope`、`by_status`、`db_bytes` |
 | `service_health` | 本机服务存活探测 | — | 每个端口的 `up` 与汇总 |
+| `character_match` | 名字相似度排序（查不到时的候选） | `query`、`top_k`、`threshold` | `matches[]`（`id` / `uid4` / `name` / `jp` / `score` / `matched` / `matched_on`）、`total_above_threshold` |
+| `character_update` | 新建角色或扩别名（**写本地覆盖层**） | `char_id`、`name`、`aliases`、`jp`、`servers`、`remove_aliases` | `action`（`created` / `updated`）、`character`、`added_aliases`、`removed_aliases`、`overlay` |
+| `character_correct` | 把一个词记成某角色（**写本地覆盖层**） | `term`、`char_id`、`note` | `action`（`alias_added` / `already_known` / `noop`）、`term`、`id`、`name`、`aliases`、`corrections`、`overlay` |
 
-阵容解析是**本地纯函数**（`tools/pcr.py`，351 个角色 / 2211 条别名的表随包分发），解析过程不出网。
+阵容解析是**本地纯函数**（`tools/pcr.py`，351 个角色 / 2211 条别名的表随包分发，本地覆盖层叠加在它上面），解析过程不出网。
 头像识别用归一化互相关（NCC）比对中间那条"脸带"，**头像包不进仓库**（游戏美术版权），
 用 `ANINEST_PCR_AVATARS` 指向你自己的 `<六位 id>.webp` 目录即可。
 
@@ -194,7 +209,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m unittest discover -s tests -v   # 139 tests
+python -m unittest discover -s tests -v   # 162 tests
 python eval/run_eval.py                   # 离线评测，26/26
 
 # stdio 模式（给桌面客户端用）
@@ -221,7 +236,7 @@ docker build --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-s
 ```
 
 镜像行为已实测（Docker 29.9.2，Linux 容器）：以 `uid=10001` 非 root 运行、`HEALTHCHECK`
-转 healthy、`initialize` 握手返回 `serverInfo.version = 0.3.0`、`tools/list` 返回全部 7 个工具。
+转 healthy、`initialize` 握手返回 `serverInfo.version = 0.4.0`、`tools/list` 返回全部 10 个工具。
 
 ## 看得见的验证：一条命令跑完整段对话
 
@@ -238,8 +253,8 @@ python demo/story.py
 [story] 准备：示例记忆库 + 假作业服务
 [story] 连上 server，开始对话
 
-[host] 已连接 7 个工具：art_search、character_lookup、portrait_identify、arena_lookup、
-       memory_search、memory_stats、service_health
+[host] 已连接 10 个工具：art_search、character_lookup、portrait_identify、arena_lookup、
+       memory_search、memory_stats、service_health、character_match、character_update、character_correct
 
 你   > 本机服务都活着吗
 host > 5/5 个服务在线。
@@ -257,12 +272,16 @@ host > 按 1号位 怜 / 2号位 克莉丝提娜 / 3号位 真琴 / 4号位 纺�
 
 你   > 布丁和克总分别是哪个角色
 host > 对上 2 个：宫子（100701）、克莉丝提娜（107101）。
+
+你   > 宫紫和克总分别是哪个角色
+host > 这个角色名我没对上，最接近的是：宫子（0.50）
+host > （真实宿主会问要不要用这个；确认后用 character_correct 记住它）
 ```
 
 加 `--verbose`（或设 `ANINEST_DEMO_VERBOSE=1`）还会打印它到底调了哪个工具、参数是什么。
 
 `demo/host.py` 只做两件事：**把一句话映射成工具名 + 参数**（`route()`），**把返回的 JSON 说成人话**（`_speak()`）。
-换成真模型做这两步，就是任何 MCP 客户端的日常。`tests/test_demo_router.py` 覆盖了这套路由（8 个用例）。
+换成真模型做这两步，就是任何 MCP 客户端的日常。`tests/test_demo_router.py` 覆盖了这套路由（11 个用例，含按名字查阵容与「布丁换成怜」）。
 
 > `art_search` 与 `portrait_identify` 在 demo 里没有演：前者要真联网抓图（由
 > `python eval/run_eval.py --network` 覆盖），后者要头像包（由 `scripts/live_check.py`
@@ -274,30 +293,36 @@ demo 用的是替身，真正能说明“它在你机器上活着”的是这个
 逐个调一遍，打印一行结果，全过才返回 0：
 
 ```bash
-python scripts/live_check.py                              # 默认查六项
+python scripts/live_check.py                              # 默认查九项，识图是条件项
 python scripts/live_check.py --lineup 布丁 克总 真琴        # 用角色名查作业
 python scripts/live_check.py --skip-network               # 没网时跳过 art_search
 python scripts/live_check.py --avatars demo_avatars       # 头像包就位时顺带验识图
 python scripts/live_check.py --memory-db path/to/memory.db   # 记忆库不在默认位置时
 ```
 
-在本机实测（Windows 11 + Python 3.13、五个服务都在跑、记忆库 37 条、头像包已就位）：
+在本机实测（Windows 11 + Python 3.13、五个服务都在跑、记忆库 37 条）：
 
 ```text
-tools (7): arena_lookup, art_search, character_lookup, memory_search, memory_stats, portrait_identify, service_health
+tools (10): arena_lookup, art_search, character_correct, character_lookup, character_match, character_update, memory_search, memory_stats, portrait_identify, service_health
 
-[ ok ] service_health    5/5 up
-[ ok ] memory_stats      rows=37 global=5 session=32
-[ ok ] memory_search     scanned=37 matched=2
-[ ok ] character_lookup  matches=2 宫子(100701)、克莉丝提娜(107101)
-[ ok ] arena_lookup      found=3 defense=[105101, 107101, 105401, 104301, 100701] up=0
-[ ok ] portrait_identify 1 portrait(s) best=宫子 score=1.0
-[ ok ] art_search        1 image(s) 2048x1050 rating=safe
+[ ok ] service_health  5/5 up
+[ ok ] memory_stats    rows=37 global=5 session=32
+[ ok ] memory_search   scanned=37 matched=2
+[ ok ] character_lookup matches=2 宫子(100701)、克莉丝提娜(107101)
+[ ok ] arena_lookup    found=10 defense=[100201, 110501, 102301, 100101, 114701] up=1
+[ ok ] character_match 100701 宫子 score=0.5 via=fuzzy_name
+[ ok ] character_update created 199901 检查用角色 aliases=1 overlay=<temp>\pcr_overlay.json
+[ ok ] character_correct alias_added 宫紫 -> 宫子
+[ ok ] art_search      1 image(s) 2048x1050 rating=safe
+[ ok ] portrait_identify 1 portrait(s) best=日和 score=1.0
 
 all checks passed
 ```
 
 `portrait_identify` 是条件项：只有设了 `ANINEST_PCR_AVATARS` 且目录里有图时才出现在列表里。
+
+`character_update` / `character_correct` 这两行写的是脚本临时目录里的覆盖层（`ANINEST_PCR_OVERLAY`
+指向临时目录），跑完即弃，不会动你真实的 `~/.aninest/pcr_overlay.json`。
 
 ## 接入客户端
 
@@ -352,11 +377,12 @@ python scripts/mcp_smoke.py --call art_search --args '{"query":"初音未来 泳
 | `ANINEST_MCP_HOST` / `ANINEST_MCP_PORT` | `127.0.0.1` / `8765` | 仅 HTTP/SSE 模式生效 |
 | `ANINEST_BOORU_URL` | `https://safebooru.org/index.php` | 任何 Gelbooru 风格 JSON API |
 | `ANINEST_HTTP_TIMEOUT` | `15` | 秒 |
-| `ANINEST_USER_AGENT` | `aninest-mcp/0.3.0 (+…)` | 图站要求可识别的 UA |
+| `ANINEST_USER_AGENT` | `aninest-mcp/0.4.0 (+…)` | 图站要求可识别的 UA |
 | `ANINEST_ARENA_URL` | `http://127.0.0.1:6191` | 本机浏览器服务（持登录态） |
 | `ANINEST_MEMORY_DB` | `~/.aninest/memory.db` | 只读打开 |
 | `ANINEST_PROBE_HOST` | `127.0.0.1` | 健康探测目标 |
 | `ANINEST_PCR_AVATARS` | （空） | 头像目录 `<六位 id>.webp`；不配则 `portrait_identify` 明确报错 |
+| `ANINEST_PCR_OVERLAY` | `~/.aninest/pcr_overlay.json` | `character_update` / `character_correct` 写本地覆盖层的位置 |
 
 ## 可靠性与安全设计
 
@@ -365,18 +391,23 @@ python scripts/mcp_smoke.py --call art_search --args '{"query":"初音未来 泳
 - **分级归一化**：`s/safe/g/general` 都当 safe，`q/e` 一律丢弃——只放行确定安全的图。
 - **宁可报错也不编造**：网络错误、非 JSON 响应、空结果分别抛 `ToolError`，不返回假数据。
 - **只读记忆库**：`file:...?mode=ro` 打开，物理上不可能写坏主程序的数据。
+- **写只写本地覆盖层**：`character_update` / `character_correct` 只改 `ANINEST_PCR_OVERLAY`（默认
+  `~/.aninest/pcr_overlay.json`），临时文件 + 原子替换，annotations 里标 `readOnlyHint=false`、
+  `destructiveHint=false`；随包分发的角色表与记忆库都不在写入范围内。
 - **零凭证**：竞技场查询走本机浏览器服务，凭证留在浏览器 profile，不进代码、不进仓库。
 - **可审计**：每个工具返回结构化字段（`relaxed`、`attempt`、`score`、`rating`），日志里不需要猜。
 
 ## 本机依赖与第三方复现
 
-七个工具里，只有 `arena_lookup` 依赖一个**不属于本仓库**的本机服务（持登录态的浏览器进程，
+十个工具里，只有 `arena_lookup` 依赖一个**不属于本仓库**的本机服务（持登录态的浏览器进程，
 它的凭证属于一次具体部署，不会开源）。为了让任何人都能自己验证，仓库带了两个替身脚本：
 
 | 工具 | 依赖 | 没有依赖时怎么验证 |
 | --- | --- | --- |
 | `art_search` | 公网图站（默认 safebooru） | 直接可用 |
 | `character_lookup` | 无（角色表随包分发） | 直接可用 |
+| `character_match` | 无（本地角色表） | 直接可用 |
+| `character_update` / `character_correct` | 无（只写本地覆盖层） | 直接可用；把 `ANINEST_PCR_OVERLAY` 指到一个临时文件里试 |
 | `portrait_identify` | 你自己的头像包 + `pip install -e ".[vision]"` | `scripts/make_demo_avatars.py --out demo_avatars` 造几张假头像 |
 | `memory_search` / `memory_stats` | 一个 SQLite 文件 | `python scripts/make_demo_db.py --out demo_memory.db` |
 | `arena_lookup` | 本机服务的 `POST /search` | `python scripts/fake_arena.py --port 6192`（同契约假数据） |
@@ -406,7 +437,7 @@ ANINEST_PCR_AVATARS=./demo_avatars python scripts/mcp_smoke.py --call portrait_i
 
 | 指标 | 结果 |
 | --- | --- |
-| 单元测试 | **139 passed**（tagging / shape / arena / pcr / portrait / memory / health / contract / router） |
+| 单元测试 | **162 passed**（tagging / shape / arena / pcr / pcr_overlay / portrait / memory / health / contract / router） |
 | 离线评测（tag 编译，26 条 golden case） | **26/26**，tag recall **1.000**，precision **1.000**，字段准确率 **1.000** |
 | 联网端到端（18 条真实请求） | **18/18 成功**，p50 **1.67 s**，p95 **1.99 s** |
 
@@ -426,7 +457,7 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 | --- | --- |
 | Python 工程化 / 包管理 | `pyproject.toml`（hatchling、可选依赖、console script）、`src/` 布局、`pip install -e ".[dev]"` |
 | 代码质量门禁 | `ruff`（E/F/I/UP/B）、`unittest`、CI 矩阵（ubuntu-24.04 / windows-2025 × 3.10/3.12/3.13） |
-| MCP / 工具调用（Tool Use） | `src/aninest/server.py`（FastMCP 注册 7 个工具 + resource + prompt） |
+| MCP / 工具调用（Tool Use） | `src/aninest/server.py`（FastMCP 注册 10 个工具 + resource + prompt） |
 | JSON Schema / 参数校验 | 工具签名 + 类型注解自动生成 schema；`validate_ids`、`normalise_rating` 做业务校验 |
 | 异步编程 | `httpx.AsyncClient`、`async def` 工具、`asyncio.run` 评测入口 |
 | 错误处理与可观测 | 统一 `ToolError`；返回结构化字段 `relaxed`/`attempt`/`score` |
@@ -435,20 +466,20 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 | HTTP 客户端与限流友好 | 单请求超时、UA 可配置、降级阶梯限制请求次数 |
 | 容器化 | `Dockerfile`（非 root、HEALTHCHECK）、`docker-compose.yml`、`.dockerignore` |
 | CI/CD | `.github/workflows/ci.yml`（lint → test → offline eval → docker build + smoke） |
-| 测试设计 | `tests/` 10 个测试模块 139 例，纯函数优先；`tests/context.py` 让测试无需安装即可跑 |
+| 测试设计 | `tests/` 11 个测试模块 162 例，纯函数优先；`tests/context.py` 让测试无需安装即可跑 |
 | 文档 | `README.md`、`docs/DECISIONS.md`（ADR）、`docs/ARCHITECTURE.md`（结构与改动指引）、`docs/PRIVACY.md`（数据边界）、`docs/THREAT_MODEL.md`、`docs/TESTING.md`（分层验证手册）、`CHANGELOG.md` |
 | 安全意识 | 只放行 safe 分级、零凭证、只读数据库、`docs/PRIVACY.md` 的 5 条 grep 自查 |
 
 ## 验证它
 
-五层验证的分工与逐层命令写在 [docs/TESTING.md](docs/TESTING.md)：lint → 单元测试（139 个）
+五层验证的分工与逐层命令写在 [docs/TESTING.md](docs/TESTING.md)：lint → 单元测试（162 个）
 → 离线评测（26 例）→ 替身演示 → 真机联调（`scripts/live_check.py`）。只有第 5 层能证明
 “接你自己的服务仍然工作”。
 
 ## 开发
 
 ```bash
-ruff check src tests eval     # lint
+ruff check src tests eval scripts demo   # lint
 python -m unittest discover -s tests -v
 python eval/run_eval.py       # 离线评测
 ```
@@ -460,18 +491,18 @@ python eval/run_eval.py       # 离线评测
 
 ```
 src/aninest/
-  config.py          # 环境变量 → Settings（含 5 个本地服务端口）
+  config.py          # 环境变量 → Settings（含 5 个本地服务端口、pcr_overlay 路径）
   tagging.py         # 中文 → booru tag 编译器（纯函数，可单测）
-  server.py          # FastMCP 注册：7 tools + 1 resource + 1 prompt
+  server.py          # FastMCP 注册：10 tools + 1 resource + 1 prompt
   data/pcr_chars.json  # 351 个角色 / 2211 条别名（由 scripts/port_characters.py 生成）
   tools/
     art.py           # 检索 + 降级阶梯 + 分级归一化
     arena.py         # 阵容名称化 → 作业查询 → 上游 payload 扁平化
-    pcr.py           # 角色表索引：别名 / 切分 / 排除 / 替换
+    pcr.py           # 角色表索引：别名 / 切分 / 排除 / 替换 + 本地覆盖层与相似度匹配
     portrait.py      # 头像 NCC 比对（可选依赖 numpy + Pillow）
     memory.py        # 只读 SQLite 检索与统计
     health.py        # TCP 探活
-tests/               # 139 个 unittest
+tests/               # 162 个 unittest（含 test_pcr_overlay.py）
 eval/                # golden set + 离线/联网评测脚本
 scripts/             # 不依赖客户端的自检脚本
 docs/                # ADR、隐私自查

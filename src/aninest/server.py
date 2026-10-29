@@ -29,6 +29,14 @@ READ_ONLY = ToolAnnotations(
     idempotentHint=True,
     openWorldHint=False,
 )
+#: Local maintenance: touches the overlay file under ``~/.aninest``, never the network.
+WRITE_LOCAL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
+)
+
 #: Same, but the result depends on outside systems (remote board, local browser service).
 READ_ONLY_OPEN = ToolAnnotations(
     readOnlyHint=True,
@@ -48,10 +56,13 @@ EXPECTED_TOOLS: tuple[str, ...] = (
     "memory_search",
     "memory_stats",
     "service_health",
+    "character_match",
+    "character_update",
+    "character_correct",
 )
 
 INSTRUCTIONS = """\
-AniNest tool server. Seven capabilities:
+AniNest tool server. Ten capabilities:
 - art_search: turn a Chinese illustration request into booru tags, then return image links.
 - character_lookup: map a character name or nickname ("布丁", "克总") to its arena id.
 - arena_lookup: look up arena defence teams for a lineup — names or ids, with optional
@@ -59,9 +70,14 @@ AniNest tool server. Seven capabilities:
 - portrait_identify: name the characters in cropped portrait images (needs an avatar pack).
 - memory_search / memory_stats: read-only retrieval over the assistant's local memory store.
 - service_health: report which local services of the stack are currently reachable.
+- character_match: rank characters by name similarity (for names a model translated).
+- character_update / character_correct: keep the character table current — add a
+  Japanese-first character, or fix a wrong match by teaching an alias.
 
 Call service_health first when another tool fails, so a down service is not
-mistaken for bad input. All tools are read-only; nothing here writes user data.
+mistaken for bad input. The first seven tools are read-only. The last three write
+only ``ANINEST_PCR_OVERLAY`` (default ``~/.aninest/pcr_overlay.json``); they never
+touch the packaged table, the memory database or the network.
 """
 
 mcp = FastMCP("aninest-mcp", instructions=INSTRUCTIONS)
@@ -219,6 +235,87 @@ def memory_stats() -> str:
 def service_health() -> str:
     """Probe the local services of the assistant stack and report their status."""
     return _dump(health.service_health())
+
+
+@mcp.tool(title="Character name match", annotations=READ_ONLY)
+def character_match(query: str, top_k: int = 5, threshold: float = 0.45) -> str:
+    """Rank characters by how close their names are to a query.
+
+    Use this when a lookup fails because the name is not in the table: the score
+    and ``matched_on`` say whether the candidate is trustworthy, so the host can
+    ask the user instead of guessing.
+
+    Args:
+        query: a name in any form, e.g. "宫紫", "ミヤコ", "miyako".
+        top_k: how many candidates to return, 1-20.
+        threshold: minimum score, 0-1; below it nothing is returned.
+    """
+    try:
+        return _dump(pcr.match_names(query, top_k=top_k, threshold=threshold))
+    except ToolError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - surfaced to the model as text
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(title="Character update", annotations=WRITE_LOCAL)
+def character_update(
+    char_id: int,
+    name: str | None = None,
+    aliases: list[str] | None = None,
+    jp: str | None = None,
+    servers: list[str] | None = None,
+    remove_aliases: list[str] | None = None,
+) -> str:
+    """Add a character or extend its aliases in the local overlay file.
+
+    New characters are usually published in Japan first and arrive with a
+    Japanese name before any Chinese alias exists; pass ``jp`` so lookups by the
+    Japanese name work immediately. The packaged table is never modified.
+
+    Args:
+        char_id: six-digit arena id, e.g. 100701.
+        name: Chinese name; required when creating a character that is not known.
+        aliases: extra names to accept, e.g. ["布丁新皮", "miyako"].
+        jp: Japanese name, e.g. "ミヤコ".
+        servers: servers the character exists on, e.g. ["jp", "cn"].
+        remove_aliases: aliases to drop (a wrong alias is worse than a missing one).
+    """
+    try:
+        return _dump(
+            pcr.update_character(
+                char_id,
+                name=name,
+                aliases=aliases,
+                jp=jp,
+                servers=servers,
+                remove_aliases=remove_aliases,
+            )
+        )
+    except ToolError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(title="Character name correction", annotations=WRITE_LOCAL)
+def character_correct(term: str, char_id: int | str, note: str = "") -> str:
+    """Teach the table that ``term`` refers to a character.
+
+    This is the manual fix for a wrong match: the term is stored as an alias of
+    the chosen character and the correction is logged with a timestamp.
+
+    Args:
+        term: what the user actually typed, e.g. "宫紫".
+        char_id: the character it should resolve to (id or any known name).
+        note: optional free text kept with the correction.
+    """
+    try:
+        return _dump(pcr.record_correction(term, char_id, note=note))
+    except ToolError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise ToolError(str(exc)) from exc
 
 
 @mcp.resource("aninest://memory/stats")

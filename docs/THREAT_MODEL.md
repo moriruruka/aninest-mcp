@@ -36,6 +36,8 @@
 | `memory_search` / `memory_stats` | 本地文件 | 环境变量决定路径 | 读到 `ANINEST_MEMORY_DB` 指向的任意 SQLite |
 | `service_health` | `ANINEST_PROBE_HOST` + 固定 5 个端口 | 环境变量决定 host | 对内网做端口探测（仅 5 个固定端口） |
 | `character_lookup` | 无出站；只读随包的 `data/pcr_chars.json` | 路径写死在包内 | 只影响匹配结果，读不到包外的东西 |
+| `character_match` | 无出站；读「包内表 + 覆盖层」 | 包内路径固定，覆盖层路径来自 `ANINEST_PCR_OVERLAY` | 只影响候选排序，读不到包外的东西 |
+| `character_update` / `character_correct` | 无出站；**写** `ANINEST_PCR_OVERLAY`（默认 `~/.aninest/pcr_overlay.json`） | 路径来自环境变量，写什么由模型参数决定 | 把任意名字/别名写进覆盖层（内容不可信，但改不到包内表、记忆库和网络）；文件可随时删掉回到出厂状态 |
 | `portrait_identify` | 无出站；读 `ANINEST_PCR_AVATARS` 目录与 `images` 给的图 | 头像目录来自环境变量；`images` 里的路径由宿主原样结转 | 读到模型指定的任意可读文件（只用于比对打分，不回传文件内容）；图片与头像包都不外发 |
 
 **结论：本仓库的 SSRF 面由环境变量而非工具参数控制。** 这是有意的：
@@ -55,6 +57,7 @@
 | T6 | 返回内容过大撑爆上下文 | `art_search` 只回 URL 与元数据（不回图片字节）；`memory_search` 默认 5 条、上限 20 | 图站返回的超长 tag 列表会原样透传 |
 | T7 | 假数据/幻觉 | 网络错误、非 JSON、空结果分别抛 `ToolError`；返回里带 `relaxed`/`attempt` 说明是否降级 | 上游本身返回错误数据时无法识别 |
 | T8 | 供应链 | 依赖锁定 `mcp>=1.20,<2`、`httpx`；CI 只跑离线评测 | 未做依赖哈希锁定（no lockfile with hashes） |
+| T9 | 覆盖层被写脏（模型把错误的名字教成别名） | 写的是独立文件、原子替换、坏文件按空处理；包内表只读，写不进去 | 覆盖层的别名会参与后续名字解析，错误的更正会一直生效到有人改回或删文件 |
 
 ## 5. 明确不防御的范围
 

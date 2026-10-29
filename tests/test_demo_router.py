@@ -41,6 +41,23 @@ class RouterTest(unittest.TestCase):
         self.assertEqual(args["count"], 2)
         self.assertIn("初音未来", args["query"])
 
+    def test_arena_accepts_character_names(self) -> None:
+        tool, args = host.route("布丁、克总、真琴、纺希、莉莎这个防守的作业")
+        self.assertEqual(tool, "arena_lookup")
+        self.assertEqual(args["defense"], ["布丁", "克总", "真琴", "纺希", "莉莎"])
+
+    def test_arena_replace_keeps_slot(self) -> None:
+        tool, args = host.route("布丁、克总、真琴、纺希、莉莎这个防守，把布丁换成怜，再查一次")
+        self.assertEqual(tool, "arena_lookup")
+        self.assertEqual(args["replace"], ["布丁->怜"])
+        # 队形原样传给工具，替换在工具里按名字原地换掉（保住号位）。
+        self.assertEqual(args["defense"], ["布丁", "克总", "真琴", "纺希", "莉莎"])
+
+    def test_character_question_goes_to_lookup(self) -> None:
+        tool, args = host.route("布丁和克总分别是哪个角色")
+        self.assertEqual(tool, "character_lookup")
+        self.assertEqual(args["query"], "布丁 克总")
+
     def test_unknown_sentence(self) -> None:
         self.assertIsNone(host.route("今天天气怎么样"))
 

@@ -20,9 +20,15 @@ import re
 import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from functools import lru_cache
 from importlib import resources
+from pathlib import Path
 from typing import Any
+
+from mcp.server.fastmcp.exceptions import ToolError
+
+from ..config import SETTINGS
 
 _SPLIT_RE = re.compile(r"[\s\u3000,，、+＋/|｜;；]+")
 _SPACE_RE = re.compile(r"[\s\u3000]+")
@@ -81,7 +87,10 @@ class Character:
 
     @property
     def all_names(self) -> list[str]:
-        return [self.name, *self.aliases]
+        # The Japanese name is included on purpose: new characters ship in Japan
+        # first, so a host may be holding "ミヤコ" long before a Chinese alias
+        # exists for it.
+        return [self.name, *self.aliases, *([self.jp] if self.jp else [])]
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -414,10 +423,11 @@ class CharacterIndex:
 
 @lru_cache(maxsize=1)
 def index() -> CharacterIndex:
-    """Load the packaged table once per process."""
+    """Load the packaged table once per process, with the local overlay applied."""
 
     text = resources.files("aninest.data").joinpath("pcr_chars.json").read_text("utf-8")
-    return CharacterIndex(json.loads(text))
+    rows = (json.loads(text) or {}).get("characters") or []
+    return CharacterIndex({"characters": merge_overlay(rows, load_overlay())})
 
 
 def reset_index() -> None:
@@ -583,3 +593,341 @@ def describe(ids: Sequence[int]) -> list[dict[str, Any]]:
         {"slot": number, "id": int(char_id), "name": idx.name_of(char_id)}
         for number, char_id in enumerate(ids, 1)
     ]
+
+
+# -- local overlay: aliases you added, names you corrected --------------------
+#
+# The packaged table is read-only: it ships with the release and an upgrade
+# replaces it. Anything the user fixes or adds lives in a separate JSON file so
+# it survives upgrades and so a wrong correction is easy to spot (and delete).
+
+OVERLAY_VERSION = 1
+
+
+def overlay_path() -> Path:
+    """Where local overrides are stored (``ANINEST_PCR_OVERLAY``)."""
+
+    return Path(SETTINGS.pcr_overlay)
+
+
+def _empty_overlay() -> dict[str, Any]:
+    return {"version": OVERLAY_VERSION, "characters": {}, "corrections": []}
+
+
+def load_overlay(path: str | Path | None = None) -> dict[str, Any]:
+    """Read the overlay, tolerating a missing or half-written file."""
+
+    target = Path(path) if path is not None else overlay_path()
+    if not target.exists():
+        return _empty_overlay()
+    try:
+        data = json.loads(target.read_text("utf-8"))
+    except (OSError, ValueError):
+        return _empty_overlay()
+    if not isinstance(data, dict):
+        return _empty_overlay()
+    characters = data.get("characters")
+    corrections = data.get("corrections")
+    return {
+        "version": int(data.get("version") or OVERLAY_VERSION),
+        "characters": characters if isinstance(characters, dict) else {},
+        "corrections": corrections if isinstance(corrections, list) else [],
+    }
+
+
+def save_overlay(data: Mapping[str, Any], path: str | Path | None = None) -> Path:
+    """Write the overlay atomically: a crash never leaves a truncated file."""
+
+    target = Path(path) if path is not None else overlay_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temp = target.with_suffix(target.suffix + ".tmp")
+    payload = json.dumps(dict(data), ensure_ascii=False, indent=2, sort_keys=True)
+    temp.write_text(payload + "\n", "utf-8")
+    temp.replace(target)
+    return target
+
+
+def merge_overlay(
+    rows: Iterable[Mapping[str, Any]], overlay: Mapping[str, Any] | None = None
+) -> list[dict[str, Any]]:
+    """Apply the overlay to the packaged rows (aliases union, names override)."""
+
+    data = overlay if overlay is not None else load_overlay()
+    overrides: Mapping[str, Any] = data.get("characters") or {}
+    merged: dict[int, dict[str, Any]] = {}
+    order: list[int] = []
+
+    for row in rows:
+        try:
+            char_id = int(row.get("id"))  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            continue
+        merged[char_id] = dict(row)
+        merged[char_id]["aliases"] = [str(a) for a in row.get("aliases") or []]
+        order.append(char_id)
+
+    for key, patch in overrides.items():
+        if not isinstance(patch, Mapping):
+            continue
+        try:
+            char_id = int(patch.get("id") or key)
+        except (TypeError, ValueError):
+            continue
+        base = merged.get(char_id)
+        if base is None:
+            base = {"id": char_id, "aliases": []}
+            order.append(char_id)
+            merged[char_id] = base
+        for field_name in ("name", "jp", "uid4"):
+            value = patch.get(field_name)
+            if value:
+                base[field_name] = value
+        if patch.get("servers"):
+            base["servers"] = [str(item) for item in patch["servers"]]
+        aliases = [str(a) for a in base.get("aliases") or []]
+        for alias in patch.get("aliases") or []:
+            text = str(alias).strip()
+            if text and text not in aliases:
+                aliases.append(text)
+        base["aliases"] = aliases
+
+    return [merged[char_id] for char_id in order]
+
+
+def update_character(
+    char_id: int | str,
+    name: str | None = None,
+    aliases: Any = None,
+    jp: str | None = None,
+    servers: Any = None,
+    remove_aliases: Any = None,
+    *,
+    path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Create or extend one character in the overlay.
+
+    ``id`` must be a six-digit arena id; ``uid4`` is derived from it. Nothing is
+    fetched from the network — a new Japanese-first character is entered by hand
+    (or by a host that scraped it), which keeps the tool deterministic.
+    """
+
+    try:
+        number = int(str(char_id).strip())
+    except (TypeError, ValueError):
+        raise ToolError(f"character id must be a number, got {char_id!r}") from None
+    if not 100000 <= number <= 999999:
+        raise ToolError(f"character id out of range: {number} (expected six digits)")
+
+    idx = index()
+    existing = idx.by_id.get(number)
+    if existing is None and not name:
+        raise ToolError(
+            f"character {number} is not in the table; pass name to create it"
+        )
+
+    overlay = load_overlay(path)
+    record = dict(overlay["characters"].get(str(number)) or {})
+    current_name = str(record.get("name") or (existing.name if existing else "")).strip()
+    if name and name.strip():
+        current_name = name.strip()
+    if not current_name:
+        raise ToolError(f"character {number} needs a name")
+
+    merged_aliases = list(record.get("aliases") or [])
+    if existing is not None:
+        for alias in existing.aliases:
+            if alias not in merged_aliases:
+                merged_aliases.append(alias)
+    added: list[str] = []
+    for alias in _as_list(aliases):
+        text = str(alias).strip()
+        if text and text not in merged_aliases and text != current_name:
+            merged_aliases.append(text)
+            added.append(text)
+
+    removed: list[str] = []
+    for alias in _as_list(remove_aliases):
+        text = str(alias).strip()
+        if text in merged_aliases:
+            merged_aliases.remove(text)
+            removed.append(text)
+
+    character_jp = (jp or record.get("jp") or (existing.jp if existing else "")).strip()
+    character_servers = [str(item) for item in _as_list(servers)] or list(
+        record.get("servers")
+        or (existing.servers if existing else [])
+        or ["cn", "jp"]
+    )
+
+    record.update(
+        {
+            "id": number,
+            "uid4": int(record.get("uid4") or number // 100),
+            "name": current_name,
+            "jp": character_jp,
+            "aliases": merged_aliases,
+            "servers": character_servers,
+        }
+    )
+    overlay["characters"][str(number)] = record
+    saved = save_overlay(overlay, path)
+    reset_index()
+
+    return {
+        "action": "updated" if existing is not None else "created",
+        "character": {
+            "id": number,
+            "uid4": int(record.get("uid4") or number // 100),
+            "name": current_name,
+            "jp": character_jp,
+            "aliases": merged_aliases,
+            "servers": character_servers,
+        },
+        "added_aliases": added,
+        "removed_aliases": removed,
+        "overlay": str(saved),
+        "characters_in_overlay": len(overlay["characters"]),
+    }
+
+
+def record_correction(
+    term: str,
+    char_id: int | str,
+    note: str = "",
+    *,
+    path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Remember "when the user says X, they mean character Y".
+
+    This is the manual escape hatch for a wrong match: the term becomes an alias
+    of the chosen character, so the very next lookup resolves it, and the
+    correction is logged with a timestamp for the user to audit.
+    """
+
+    key = str(term or "").strip()
+    if not key:
+        raise ToolError("term is required")
+    idx = index()
+    resolved = idx.resolve_token(str(char_id)) if idx.character(char_id) is None else None
+    target = idx.character(char_id) or (idx.character(resolved) if resolved else None)
+    if target is None:
+        raise ToolError(f"unknown character: {char_id!r}")
+    if normalize(key) == normalize(target.name):
+        return {
+            "action": "noop",
+            "reason": "term is already the character name",
+            "id": target.id,
+            "name": target.name,
+        }
+
+    overlay = load_overlay(path)
+    record = dict(overlay["characters"].get(str(target.id)) or {})
+    merged_aliases = list(record.get("aliases") or [])
+    if target.id in idx.by_id:
+        for alias in idx.by_id[target.id].aliases:
+            if alias not in merged_aliases:
+                merged_aliases.append(alias)
+
+    already = any(normalize(alias) == normalize(key) for alias in merged_aliases)
+    action = "already_known" if already else "alias_added"
+    if not already:
+        merged_aliases.append(key)
+        record.setdefault("id", target.id)
+        record["uid4"] = int(record.get("uid4") or target.uid4)
+        record["name"] = str(record.get("name") or target.name)
+        record["aliases"] = merged_aliases
+        overlay["characters"][str(target.id)] = record
+        overlay["corrections"].append(
+            {
+                "term": key,
+                "id": target.id,
+                "note": note.strip(),
+                "at": datetime.now(UTC).isoformat(timespec="seconds"),
+            }
+        )
+
+    saved = save_overlay(overlay, path)
+    reset_index()
+    return {
+        "action": action,
+        "term": key,
+        "id": target.id,
+        "name": target.name,
+        "aliases": merged_aliases,
+        "corrections": len(overlay["corrections"]),
+        "overlay": str(saved),
+    }
+
+
+def match_names(
+    query: str, top_k: int = 5, threshold: float = 0.45
+) -> dict[str, Any]:
+    """Rank characters by how close their names are to ``query``.
+
+    Exists because a host often hands over a name a language model already
+    translated, so it may differ from what the user typed (宫子 / ミヤコ /
+    "miyako"). Every candidate carries the score and what matched, so a host can
+    decide whether to ask the user instead of guessing.
+    """
+
+    raw = str(query or "").strip()
+    if not raw:
+        raise ToolError("query is required")
+    idx = index()
+    key = normalize(raw)
+    scored: list[dict[str, Any]] = []
+
+    for character in idx.characters:
+        best_score = 0.0
+        best_name = character.name
+        best_mode = "none"
+        for label, value in (
+            ("name", character.name),
+            ("alias", ",".join(character.aliases)),
+            ("jp", character.jp),
+        ):
+            if not value:
+                continue
+            for piece in (value.split(",") if label == "alias" else [value]):
+                candidate = normalize(piece)
+                if not candidate:
+                    continue
+                if candidate == key:
+                    score, mode = 1.0, f"exact_{label}"
+                elif candidate.startswith(key) or key.startswith(candidate):
+                    shorter = min(len(candidate), len(key))
+                    span = max(len(candidate), len(key))
+                    score = 0.72 + 0.2 * shorter / span
+                    mode = f"prefix_{label}"
+                elif key in candidate or candidate in key:
+                    score, mode = 0.66, f"substring_{label}"
+                else:
+                    shared = len(set(key) & set(candidate))
+                    total = max(1, len(set(key) | set(candidate)))
+                    overlap = shared / total
+                    score = max(similarity(key, candidate), overlap * 0.95)
+                    mode = f"fuzzy_{label}"
+                if score > best_score:
+                    best_score, best_name, best_mode = score, piece, mode
+
+        if best_score >= threshold:
+            scored.append(
+                {
+                    "id": character.id,
+                    "uid4": character.uid4,
+                    "name": character.name,
+                    "jp": character.jp,
+                    "score": round(min(1.0, best_score), 3),
+                    "matched": best_name,
+                    "matched_on": best_mode,
+                }
+            )
+
+    scored.sort(key=lambda item: (-item["score"], item["id"]))
+    top = scored[: max(1, int(top_k))]
+    return {
+        "query": raw,
+        "threshold": threshold,
+        "matches": top,
+        "total_above_threshold": len(scored),
+    }

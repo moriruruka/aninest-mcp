@@ -12,7 +12,7 @@ pip install -e ".[dev]"
 ## 提交前必须通过
 
 ```bash
-ruff check src tests eval
+ruff check src tests eval scripts demo
 python -m unittest discover -s tests -v
 python eval/run_eval.py
 ```
@@ -31,9 +31,12 @@ python eval/run_eval.py
 
 1. 在 `src/aninest/tools/<name>.py` 实现核心逻辑（纯函数 + 一个 async 入口）。
 2. 在 `server.py` 用 `@mcp.tool()` 注册，写清 docstring（它会成为工具描述，宿主模型据此判断何时调用）。
-3. 在 `tests/` 加单元测试，覆盖：正常路径、边界值、错误路径。
-4. 更新 `README.md` 的工具表、`CHANGELOG.md` 的 `Added`。
-5. 如果引入了新的环境变量，同步 `.env.example` 与 README 的配置表。
+3. 把名字加进 `server.EXPECTED_TOOLS`，并给工具挂 `annotations`：只读用 `READ_ONLY`，只写本地文件用
+   `WRITE_LOCAL`（`readOnlyHint=False`、`destructiveHint=False`、`idempotentHint=True`）；
+   `tests/test_server_contract.py` 对着这份清单与三个 flag 断言。
+4. 在 `tests/` 加单元测试，覆盖：正常路径、边界值、错误路径。
+5. 更新 `README.md` 的工具表、`CHANGELOG.md` 的 `Added`。
+6. 如果引入了新的环境变量，同步 `.env.example` 与 README 的配置表。
 
 ## 新增一条评测用例
 

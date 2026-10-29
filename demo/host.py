@@ -158,6 +158,23 @@ def _speak_error(tool: str, payload: str) -> str:
     return payload.splitlines()[0][:200] if payload else "工具报错了，但没给具体原因。"
 
 
+def _unresolved(payload: str) -> list[str]:
+    """Tokens the lookup could not resolve — the ones worth a similarity hint."""
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return []
+    return [str(item) for item in data.get("unresolved") or []]
+
+
+def _speak_match(payload: str) -> str:
+    try:
+        matches = json.loads(payload).get("matches") or []
+    except json.JSONDecodeError:
+        return ""
+    return "、".join(f"{item['name']}（{item['score']:.2f}）" for item in matches[:3])
+
+
 def _speak(tool: str, payload: str) -> str:
     """把工具返回的结构化 JSON 说成人话——真实宿主里这步由模型完成。"""
     try:
@@ -270,6 +287,19 @@ async def converse(lines: list[str], echo_prompts: bool = True, verbose: bool = 
                     print(f"host > 调 {tool}({json.dumps(args, ensure_ascii=False)})")
                 result = await session.call_tool(tool, args)
                 payload = _first_text(result)
+                # 名字没认出来时，真实宿主会先问"你是不是指 X"；这里用相似度工具演示同一件事。
+                missing = _unresolved(payload) if tool == "character_lookup" else []
+                if missing:
+                    hint = await session.call_tool(
+                        "character_match", {"query": missing[0], "threshold": 0.4}
+                    )
+                    suggestion = _speak_match(_first_text(hint))
+                    if suggestion:
+                        print(f"host > 这个角色名我没对上，最接近的是：{suggestion}")
+                        print("host > （真实宿主会问要不要用这个；")
+                        print("host >   确认后用 character_correct 记住它）")
+                        print()
+                        continue
                 if result.isError:
                     print(f"host > 这一步没成功：{_speak_error(tool, payload)}")
                     if VERBOSE:

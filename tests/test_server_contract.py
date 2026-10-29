@@ -14,14 +14,18 @@ import context  # noqa: F401
 from aninest.server import EXPECTED_TOOLS as SERVER_TOOLS
 from aninest.server import mcp
 
+#: tool -> (title, reaches outside the machine, may write the local overlay)
 EXPECTED_TOOLS = {
-    "art_search": ("Illustration search", True),
-    "character_lookup": ("Character lookup", False),
-    "portrait_identify": ("Portrait identification", False),
-    "arena_lookup": ("Arena lineup lookup", True),
-    "memory_search": ("Memory search", False),
-    "memory_stats": ("Memory store stats", False),
-    "service_health": ("Service health", False),
+    "art_search": ("Illustration search", True, False),
+    "character_lookup": ("Character lookup", False, False),
+    "portrait_identify": ("Portrait identification", False, False),
+    "arena_lookup": ("Arena lineup lookup", True, False),
+    "memory_search": ("Memory search", False, False),
+    "memory_stats": ("Memory store stats", False, False),
+    "service_health": ("Service health", False, False),
+    "character_match": ("Character name match", False, False),
+    "character_update": ("Character update", False, True),
+    "character_correct": ("Character name correction", False, True),
 }
 
 
@@ -47,14 +51,16 @@ class ToolSurfaceTest(unittest.TestCase):
             with self.subTest(tool=tool.name):
                 self.assertEqual(tool.title, EXPECTED_TOOLS[tool.name][0])
 
-    def test_annotations_declare_read_only(self) -> None:
+    def test_annotations_are_accurate(self) -> None:
+        """A host decides whether to auto-approve from these three flags."""
         for tool in _tools():
             with self.subTest(tool=tool.name):
                 ann = tool.annotations
+                title, open_world, writes = EXPECTED_TOOLS[tool.name]
                 self.assertIsNotNone(ann, "annotations missing")
-                self.assertTrue(ann.readOnlyHint, "every tool is read-only")
-                self.assertFalse(ann.destructiveHint)
-                self.assertEqual(bool(ann.openWorldHint), EXPECTED_TOOLS[tool.name][1])
+                self.assertEqual(bool(ann.readOnlyHint), not writes)
+                self.assertFalse(ann.destructiveHint, "nothing here deletes user data")
+                self.assertEqual(bool(ann.openWorldHint), open_world)
 
     def test_instructions_explain_health_first(self) -> None:
         self.assertIn("service_health", mcp.instructions or "")

@@ -2,6 +2,37 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.0] - 2026-10-29
+
+### Added
+
+- `character_match(query, top_k=5, threshold=0.45)`：按名字相似度给候选，每个候选带 `score`（0–1）与
+  `matched_on`（`exact_name` / `exact_alias` / `prefix_jp` / `substring_alias` / `fuzzy_name` 等），
+  让宿主在"查不到这个名字"时把候选摆给用户挑，而不是猜一个。只读、不出网。
+- `character_update(char_id, name=None, aliases=None, jp=None, servers=None, remove_aliases=None)`：
+  新建角色或补别名。日服先上线的角色往往只有日文名，传 `jp="ミヤコ"` 就能立刻按日文名查到；
+  表里没有的 id 必须带 `name`，重复发同一批别名不会写重复项。
+- `character_correct(term, char_id, note="")`：修正匹配——把 `term` 记成该角色的别名，并在覆盖层里
+  留一条带时间的更正记录；写完立刻重载索引，下一次调用就生效。`char_id` 接受六位 id 或任何已知名字。
+- **本地覆盖层** `ANINEST_PCR_OVERLAY`（默认 `~/.aninest/pcr_overlay.json`）：随包分发的
+  `src/aninest/data/pcr_chars.json` 升级时会被整个替换，所以用户加的角色、教过的别名都写在这个独立
+  JSON 里，和包内表合并后生效（临时文件 + 原子替换；文件缺失或写坏时按空覆盖层处理，不影响启动）。
+- 日文名进入可查名字集合（`all_names` 现在含 `jp`）：`ミヤコ` 能直接解析到宫子（100701），
+  不必先有中文别名。
+
+### Changed
+
+- 工具数量 7 → 10。两个写工具用 `WRITE_LOCAL = ToolAnnotations(readOnlyHint=False, destructiveHint=False,
+  idempotentHint=True, openWorldHint=False)` 标注：只写本地覆盖层，不联网、不删数据；其余七个仍是
+  `readOnlyHint=True`，宿主可以据此只对这两个要一次确认。
+- `aninest.server.EXPECTED_TOOLS` 成为工具清单的单一来源：CI 与 `tests/test_server_contract.py`
+  都对着它断言，不再维护第三份手写列表。
+- `scripts/live_check.py` 把 `ANINEST_PCR_OVERLAY` 指向临时目录，并把 `character_match` /
+  `character_update` / `character_correct` 纳入联调（输出变成 `tools (10)`）：一次真机联调不会往你真实的
+  覆盖层里写测试角色。
+- 测试 139 → 162（11 个测试模块，新增 `tests/test_pcr_overlay.py`）；README、USAGE、ARCHITECTURE、
+  COMPLIANCE、TESTING 的工具表与计数同步到十个工具。
+
 ## [0.3.0] - 2026-10-29
 
 ### Added

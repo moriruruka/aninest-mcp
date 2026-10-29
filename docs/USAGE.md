@@ -3,24 +3,31 @@
 这份文档面向"已经装好了、想知道怎么用"的人。安装见 [INSTALL.md](INSTALL.md)。
 
 AniNest 不是聊天机器人，它是一层**能力**。真正和你对话的是宿主（Claude Desktop、DSH、编辑器插件等），
-宿主在需要的时候调用这七个工具。所以"怎么用"其实是两件事：**你会怎么问**，以及**工具会返回什么**。
+宿主在需要的时候调用这十个工具。所以"怎么用"其实是两件事：**你会怎么问**，以及**工具会返回什么**。
 
 ---
 
-## 1. 七个工具能做什么
+## 1. 十个工具能做什么
 
 | 工具 | 一句话 | 典型问法 |
 | --- | --- | --- |
 | `art_search` | 把一句中文描述变成图站能懂的标签，再取回图片链接 | "来两张初音未来泳装的竖图" |
 | `arena_lookup` | 按名字（或 id）查一个防守阵容的作业，可顺带排除/替换再查 | "布丁、克总、真琴、纺希、莉莎这队作业" |
 | `character_lookup` | 把嘴里的叫法对上标准角色：名字 / 黑话 / 四位 uid / 六位 id | "布丁和克总分别是哪个角色" |
+| `character_match` | 名字相似度排序：查不到时列出候选、分数和命中方式 | "宫紫 是哪个角色" |
+| `character_update` | 新建角色或补别名（**写本地覆盖层**） | "日服刚出的新角色，加一下" |
+| `character_correct` | 把一个词记到某角色名下（**写本地覆盖层**） | "宫紫 就是宫子，记住" |
 | `portrait_identify` | 看一张已经裁好的头像，说出是哪个角色 | "这张头像上是谁" |
 | `memory_search` | 在助手自己的记忆库里检索（只读） | "上次说的那个配色偏好还记得吗" |
 | `memory_stats` | 记忆库有多大、多少条、按范围分布 | "你的记忆存了多少了" |
 | `service_health` | 本机那几个服务此刻在不在 | "服务都活着吗" |
 
 顺序建议：**先 `service_health`，再调其它**。这样"服务没起"不会被误当成"你参数给错了"。
-阵容里的人名认不准时，先 `character_lookup` 对一遍再 `arena_lookup`，比直接查省事。
+阵容里的人名认不准时，先 `character_lookup` 对一遍再 `arena_lookup`，比直接查省事；
+`character_lookup` 没对上就用 `character_match` 看候选（见第 4 节）。
+
+前七个工具只读；`character_match` 也只读。`character_update` / `character_correct` 会写本地覆盖层
+`~/.aninest/pcr_overlay.json`，不碰随包分发的角色表、记忆库和网络（第 4 节专门讲这三个）。
 
 ---
 
@@ -132,11 +139,139 @@ AniNest 不是聊天机器人，它是一层**能力**。真正和你对话的�
 
 - 单字别名（比如 `克`）只在**完全相等**时命中，不参与模糊猜测——否则几乎任何词都能蹭上。
 - `日和` 这种名字里带「和」的角色不会被拆成两半：`和`只在整串都认不出时才当分隔符。
-- 角色表随包分发（`src/aninest/data/pcr_chars.json`，351 个角色 / 2211 条别名），纯本地匹配、不出网。
+- 日文名也是可查的名字：`all_names` 里含 `jp`，所以 `ミヤコ` 能直接查到宫子（100701）。
+- 角色表随包分发（`src/aninest/data/pcr_chars.json`，351 个角色 / 2211 条别名），纯本地匹配、不出网；
+  本地覆盖层里的新角色与别名会**并进同一张索引**，包里的表不会被改（见第 4 节）。
 
 ---
 
-## 4. `portrait_identify`：这张头像是谁
+## 4. 认不准 / 有新角色：`character_match`、`character_update`、`character_correct`
+
+这三个工具管的是**角色表本身**，不查作业、不查图：一个帮你列候选，另外两个把更正写进本地覆盖层。
+随包分发的 `src/aninest/data/pcr_chars.json`（351 个角色 / 2211 条别名）是只读的，升级时整个替换；
+你加的东西写在覆盖层 `~/.aninest/pcr_overlay.json`（`ANINEST_PCR_OVERLAY` 可改路径），
+和包里的表合并后生效。所以升级不会丢，写坏了删掉这个文件就回到出厂状态。
+
+### 4.1 `character_match`：查不到名字时，先把候选摆出来
+
+宿主该在什么时候调它：`character_lookup` 一个都没对上、或 `arena_lookup` 的 `unresolved` 非空时。
+它按名字相似度排序，给出分数和**命中方式**；宿主把这些候选连同分数给用户看，让用户挑，
+再决定要不要 `character_correct`——**不要自己挑一个"最像的"就写进去**。
+
+参数：
+
+| 参数 | 类型 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `query` | 字符串 | 必填 | 要认的名字：中文 / 日文 / 罗马字 / 手误都行（`宫紫`、`ミヤコ`、`miyako`） |
+| `top_k` | 整数 | `5` | 最多返回几个候选（1–20） |
+| `threshold` | 浮点 | `0.45` | 分数下限（0–1），低于它的不算候选 |
+
+返回：
+
+```json
+{
+  "query": "宫紫",
+  "threshold": 0.45,
+  "matches": [
+    { "id": 100701, "uid4": 1007, "name": "宫子", "jp": "ミヤコ",
+      "score": 0.5, "matched": "宫子", "matched_on": "fuzzy_name" }
+  ],
+  "total_above_threshold": 1
+}
+```
+
+- `score`：0–1，`1.0` 只给完全相同的写法。
+- `matched_on` 说明它是怎么对上的：`exact_name` / `exact_alias` / `exact_jp` 可以信；
+  `prefix_*`、`substring_*` 依次弱一些；`fuzzy_*` 只表示"像"，**不该当确定答案**。
+- `matched`：具体对上的是哪个写法（标准名 / 某条别名 / 日文名）。
+- `total_above_threshold`：过线的总数，可能大于 `matches` 的长度（被 `top_k` 截了）。
+
+失败：`query is required`（`query` 去掉空白后是空的）。
+
+### 4.2 `character_update`：加一个新角色、补别名
+
+只用于**表里真的没有**的角色——日服先上线、中文名和黑话还没传开的那些。
+"匹配错了"不是它的场景，那种情况用 `character_correct`，别再造一个人出来。
+
+参数：
+
+| 参数 | 类型 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `char_id` | 整数 | 必填 | 六位竞技场 id（100000–999999） |
+| `name` | 字符串 | `null` | 中文名；表里没有这个 id 时**必须**给 |
+| `aliases` | 字符串数组 | `null` | 要接受的其它叫法，如 `["新酱"]` |
+| `jp` | 字符串 | `null` | 日文名；新角色通常只有这个，给了就能按日文名查 |
+| `servers` | 字符串数组 | `null` | 出现的区服，如 `["jp", "cn"]`；不填沿用原值或 `["cn", "jp"]` |
+| `remove_aliases` | 字符串数组 | `null` | 要删掉的别名（错的别名比没有更糟） |
+
+返回：
+
+```json
+{
+  "action": "created",
+  "character": { "id": 199901, "uid4": 1999, "name": "新角色", "jp": "シンキャラ",
+                 "aliases": ["新酱"], "servers": ["cn", "jp"] },
+  "added_aliases": ["新酱"],
+  "removed_aliases": [],
+  "overlay": "C:/Users/you/.aninest/pcr_overlay.json",
+  "characters_in_overlay": 1
+}
+```
+
+- `action`：`created`（表里原来没有）或 `updated`（原来就有）。
+- **幂等**：同样的别名再发一次，`added_aliases` 是空数组，文件里不会出现重复项。
+- `overlay` 是真正写入的路径，`characters_in_overlay` 是覆盖层里累计几个角色。
+
+失败：
+`character id must be a number, got …`（不是数字）、
+`character id out of range: … (expected six digits)`（不在 100000–999999）、
+`character 199902 is not in the table; pass name to create it`（新建却没给 `name`）。
+
+### 4.3 `character_correct`：把一个词记到某角色名下
+
+这是"匹配错了"的手工修正：`term` 存成该角色的别名，并在覆盖层里记一条带时间的更正。
+写完会立刻重载索引，**下一次调用就生效，不用重启进程**。
+
+参数：
+
+| 参数 | 类型 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `term` | 字符串 | 必填 | 用户实际打出来的词，如 `宫紫` |
+| `char_id` | 整数或字符串 | 必填 | 它应该指向谁：六位 id，或任何已知名字（`宫子`） |
+| `note` | 字符串 | `""` | 备注，跟着这条更正一起存 |
+
+返回：
+
+```json
+{
+  "action": "alias_added",
+  "term": "宫紫",
+  "id": 100701,
+  "name": "宫子",
+  "aliases": ["…", "宫紫"],
+  "corrections": 1,
+  "overlay": "C:/Users/you/.aninest/pcr_overlay.json"
+}
+```
+
+- `action`：`alias_added`（新学会）、`already_known`（这条别名本来就有，不重复写）、
+  `noop`（`term` 就是角色名本身，没什么可加的——这时只返回 `action` / `reason` / `id` / `name`）。
+- `corrections`：覆盖层里累计的更正条数。
+
+失败：`term is required`（`term` 是空的）、`unknown character: '…'`（`char_id` 既不是 id 也对不上名字）。
+
+### 4.4 三者的分工
+
+| 情况 | 用哪个 |
+| --- | --- |
+| `character_lookup` 没对上，想知道像谁 | `character_match` |
+| 用户确认"就是这些候选里的某一个" | `character_correct(term, 那个 id)` |
+| 用户确认"是没收录的新角色" | `character_update(jp=…)`（表里没有这个 id，必须带 `name`） |
+| 某条别名总把人带错 | 先 `character_update(remove_aliases=[…])` 删掉，再 `character_correct` 教对的 |
+
+---
+
+## 5. `portrait_identify`：这张头像是谁
 
 ### 你会怎么问
 
@@ -203,7 +338,7 @@ python scripts/make_demo_avatars.py --out demo_avatars
 
 ---
 
-## 5. `arena_lookup`：按名字查作业
+## 6. `arena_lookup`：按名字查作业
 
 ### 你会怎么问
 
@@ -283,7 +418,7 @@ python scripts/make_demo_avatars.py --out demo_avatars
 
 ---
 
-## 6. `memory_search` / `memory_stats`：只读地翻记忆
+## 7. `memory_search` / `memory_stats`：只读地翻记忆
 
 这两个工具**只读**，不会写、不会改、不会删。数据库以 `mode=ro` 打开。
 
@@ -321,7 +456,7 @@ Point ANINEST_MEMORY_DB at an existing SQLite file, or create a sample one with
 
 ---
 
-## 7. `service_health`：本机服务在不在
+## 8. `service_health`：本机服务在不在
 
 ```json
 { "host": "127.0.0.1", "up": 5, "total": 5,
@@ -340,13 +475,14 @@ Point ANINEST_MEMORY_DB at an existing SQLite file, or create a sample one with
 
 ---
 
-## 8. 配置项（全部走环境变量）
+## 9. 配置项（全部走环境变量）
 
 | 变量 | 默认值 | 作用 |
 | --- | --- | --- |
 | `ANINEST_ARENA_URL` | `http://127.0.0.1:6191` | 浏览器作业服务的地址 |
 | `ANINEST_MEMORY_DB` | `~/.aninest/memory.db` | 记忆库路径（只读） |
 | `ANINEST_PCR_AVATARS` | 空（未配） | 头像包目录，里面是 `<六位角色 id>.webp` / `.png`；不配则 `portrait_identify` 明确报错 |
+| `ANINEST_PCR_OVERLAY` | `~/.aninest/pcr_overlay.json` | 本地角色覆盖层：`character_update` / `character_correct` 写它，`character_lookup` / `character_match` 读它 |
 | `ANINEST_BOORU_URL` | `https://safebooru.org/index.php` | 图站地址 |
 | `ANINEST_HTTP_TIMEOUT` | `15` | 单次 HTTP 超时（秒） |
 | `ANINEST_USER_AGENT` | `aninest-mcp/<版本> (+仓库地址)` | 出站 UA |
@@ -355,13 +491,13 @@ Point ANINEST_MEMORY_DB at an existing SQLite file, or create a sample one with
 | `ANINEST_PROBE_HOST` | `127.0.0.1` | `service_health` 探的地址 |
 
 安全相关的固定行为：工具参数里**没有 URL**（出站地址只来自环境变量，模型无法让服务去访问任意地址）、
-记忆库只读、图站结果只放行 `safe`。
+记忆库只读、图站结果只放行 `safe`、写操作只有一个目标（覆盖层文件，原子写、可随时删掉回到出厂状态）。
 
 ---
 
-## 9. 常见问题
+## 10. 常见问题
 
-**Q：宿主里看不到这七个工具？**
+**Q：宿主里看不到这十个工具？**
 先确认 `command` 是绝对路径、客户端已重启；再用 `npx @modelcontextprotocol/inspector <command>` 看能不能列出工具。
 命令行能起、客户端里没有，多半是客户端配置写错了层级（要放在 `mcpServers` 下）。
 
@@ -370,13 +506,15 @@ Point ANINEST_MEMORY_DB at an existing SQLite file, or create a sample one with
 
 **Q：`portrait_identify` 说缺依赖 / 缺头像包？**
 识图是可选能力：先 `pip install -e ".[vision]"`，再把 `ANINEST_PCR_AVATARS` 指向你的 `<六位 id>.webp` 目录。
-两个都没有时其它六个工具照常工作。
+两个都没有时其余九个工具照常工作。
 
 **Q：中文搜图搜不出来？**
 看返回里的 `unknown_words` 和 `relaxed`；把描述换成"角色名 + 名词"最稳，形容词多了容易被降级。
 
 **Q：能写记忆 / 能发评论 / 能操作用户账号吗？**
-都不能。七个工具全是只读，这是设计边界（见 [THREAT_MODEL.md](THREAT_MODEL.md)）。
+都不能。这是设计边界（见 [THREAT_MODEL.md](THREAT_MODEL.md)）。原有七个工具只读；`character_match` 也只读；
+`character_update` / `character_correct` 只写本地覆盖层 `~/.aninest/pcr_overlay.json`——
+原子写、不删任何数据、不联网、不碰随包分发的角色表和记忆库。
 
 **Q：能同时开多个客户端吗？**
 stdio 模式下每个客户端各起一个进程，互不影响；HTTP 模式注意只绑 `127.0.0.1`。
@@ -387,7 +525,7 @@ stdout 只走协议，日志在 stderr。客户端一般会把 stderr 收进自�
 
 ---
 
-## 10. 想改它
+## 11. 想改它
 
 见 [ARCHITECTURE.md](ARCHITECTURE.md)（模块职责、改动时注意什么）与 [TESTING.md](TESTING.md)（五层验证、每层能证明什么）。
 改完至少跑一遍：

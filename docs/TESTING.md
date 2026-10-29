@@ -60,25 +60,26 @@ python -m unittest discover -s tests
 期望输出（数字会随用例增长）：
 
 ```text
-Ran 139 tests in 7.5s
+Ran 162 tests in 7.5s
 OK (skipped=11)
 ```
 
 `skipped=11` 是没装 `[vision]` 时的正常现象：`test_portrait.py` 那 11 个用例需要 numpy + Pillow，
 装过 `pip install -e ".[vision]"` 之后它们会真的跑起来。
 
-这 139 个用例里，绝大多数只用 fixtures，不联网、不需要服务。它们覆盖：
+这 162 个用例里，绝大多数只用 fixtures，不联网、不需要服务。它们覆盖：
 
 - `test_tagging.py`：中文词 → tag 的别名表、黑名单、方向/尺寸/张数解析、负向 tag
 - `test_art_shape.py`：把图站返回的原始行规整成结果、分级归一（`s`/`safe`/`g`…）、降级阶梯
 - `test_arena.py`：阵容 id 校验（1–5 个、去重、范围）、**真实返回结构的解析**（`data.data.result[].def/atk` 对象、`up`/`down`）
 - `test_arena_names.py`：按名字查作业——用 stdlib 起一个假作业服务，检查**实际发出去的 `def`**，以及 `exclude` / `replace` / 部分认不出
 - `test_pcr_chars.py`：角色表规模与唯一性、别名与四位 uid / 六位 id 解析、无分隔连写切分、排除替换，以及「布丁和克总」能拆、「日和」不被拆
+- `test_pcr_overlay.py`：本地覆盖层 20 例——新建角色、扩别名、幂等（同样的别名加两次不重复）、删别名后查不到、包内 `pcr_chars.json` 一个字节都不改、覆盖层写成坏 JSON 也不影响查询、原子写（不留 `.tmp`、文件以换行结尾）、更正入日志且带时间戳、`character_match` 的分数与 `matched_on`（精确 / 日文名 / 手误 fuzzy / 阈值过滤 / `top_k` / 空 query 报错）
 - `test_portrait.py`：临时目录里画合成头像跑 NCC（原图 / 裸字节 / base64 / 低于 `min_score` 判未知）；没装 `[vision]` 时整体跳过
 - `test_memory.py`：只读打开、打分、统计
 - `test_health.py`：端口探活的成功/失败分支
 - `test_demo_router.py`：host 的路由与措辞（不需要真的连 server）
-- `test_server_contract.py`：MCP 契约——工具清单（7 个）、schema、title、annotations、resource、prompt
+- `test_server_contract.py`：MCP 契约——工具清单（10 个，并与 `server.EXPECTED_TOOLS` 对表）、schema、title、annotations、resource、prompt
 
 想只跑一个文件：
 
@@ -125,7 +126,7 @@ python demo/story.py
 探活 → 回忆 → 按名字查作业 → 换人再查 → 认角色。期望看到（节选）：
 
 ```text
-[host] 已连接 7 个工具：art_search、character_lookup、portrait_identify、arena_lookup、memory_search、memory_stats、service_health
+[host] 已连接 10 个工具：art_search、character_lookup、portrait_identify、arena_lookup、memory_search、memory_stats、service_health、character_match、character_update、character_correct
 
 你   > 布丁、克总、真琴、纺希、莉莎这个防守的作业
 host > 按 1号位 宫子 / 2号位 克莉丝提娜 / 3号位 真琴 / 4号位 纺希 / 5号位 莉莎 查：找到 2 支队伍，最热门的是 优衣 / 香织(夏日) / 绫音 / 日和 / 矛依未(新年)（赞 1、踩 0）。
@@ -155,20 +156,23 @@ ANINEST_ARENA_URL=http://127.0.0.1:6192 python scripts/mcp_smoke.py --call arena
 python scripts/live_check.py
 ```
 
-它用真实 MCP stdio 启动 server，逐个调七个工具，打印一行结果；**只有全部通过时退出码才是 0**。
+它用真实 MCP stdio 启动 server，逐个调十个工具，打印一行结果；**只有全部通过时退出码才是 0**。
 
-在本机（五个服务都在跑、记忆库 37 条、头像包已就位）的实测输出：
+在本机（五个服务都在跑、记忆库 37 条）的实测输出：
 
 ```text
-tools (7): arena_lookup, art_search, character_lookup, memory_search, memory_stats, portrait_identify, service_health
+tools (10): arena_lookup, art_search, character_correct, character_lookup, character_match, character_update, memory_search, memory_stats, portrait_identify, service_health
 
-[ ok ] service_health    5/5 up
-[ ok ] memory_stats      rows=37 global=5 session=32
-[ ok ] memory_search     scanned=37 matched=2
-[ ok ] character_lookup  matches=2 宫子(100701)、克莉丝提娜(107101)
-[ ok ] arena_lookup      found=3 defense=[105101, 107101, 105401, 104301, 100701] up=0
-[ ok ] portrait_identify 1 portrait(s) best=宫子 score=1.0
-[ ok ] art_search        1 image(s) 2048x1050 rating=safe
+[ ok ] service_health  5/5 up
+[ ok ] memory_stats    rows=37 global=5 session=32
+[ ok ] memory_search   scanned=37 matched=2
+[ ok ] character_lookup matches=2 宫子(100701)、克莉丝提娜(107101)
+[ ok ] arena_lookup    found=10 defense=[100201, 110501, 102301, 100101, 114701] up=1
+[ ok ] character_match 100701 宫子 score=0.5 via=fuzzy_name
+[ ok ] character_update created 199901 检查用角色 aliases=1 overlay=<temp>\pcr_overlay.json
+[ ok ] character_correct alias_added 宫紫 -> 宫子
+[ ok ] art_search      1 image(s) 2048x1050 rating=safe
+[ ok ] portrait_identify 1 portrait(s) best=日和 score=1.0
 
 all checks passed
 ```
@@ -185,6 +189,9 @@ python scripts/live_check.py --avatars demo_avatars       # 头像包就位时�
 `portrait_identify` 是**条件项**：只有设了 `ANINEST_PCR_AVATARS`（`--avatars` 等同于替你设）且目录里有图时才会出现，
 否则这一项直接缺席，其它项照跑。
 
+两个写工具（`character_update` / `character_correct`）跑在**临时覆盖层**上：脚本把 `ANINEST_PCR_OVERLAY`
+指到一个 `TemporaryDirectory`，跑完即弃，所以一次联调不会往你真实的 `~/.aninest/pcr_overlay.json` 里塞测试角色。
+
 环境变量（任选，缺项就用默认值）：
 
 | 变量 | 默认 | 作用 |
@@ -194,6 +201,7 @@ python scripts/live_check.py --avatars demo_avatars       # 头像包就位时�
 | `ANINEST_BOORU_URL` | `https://safebooru.org/index.php` | 图站 |
 | `ANINEST_PROBE_HOST` | `127.0.0.1` | `service_health` 探的地址 |
 | `ANINEST_PCR_AVATARS` | 空 | 头像包目录；配了才会查 `portrait_identify` |
+| `ANINEST_PCR_OVERLAY` | `~/.aninest/pcr_overlay.json` | 角色覆盖层；`live_check.py` 会临时改成一次性目录，不用你管 |
 
 失败时的读法：
 
@@ -214,7 +222,7 @@ python scripts/live_check.py --avatars demo_avatars       # 头像包就位时�
 npx @modelcontextprotocol/inspector python -m aninest
 ```
 
-浏览器里会列出七个工具，逐个点开填参数即可。或者把 server 加进你惯用的客户端（Claude Desktop / Cursor / Cline 等），配置形状都一样：
+浏览器里会列出十个工具，逐个点开填参数即可。或者把 server 加进你惯用的客户端（Claude Desktop / Cursor / Cline 等），配置形状都一样：
 
 ```json
 {

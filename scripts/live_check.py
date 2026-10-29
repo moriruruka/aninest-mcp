@@ -20,6 +20,7 @@ import asyncio
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
@@ -98,6 +99,28 @@ def _check_portrait(payload: dict) -> str:
     return f"{len(results)} portrait(s) best={best.get('name')} score={best.get('score')}"
 
 
+def _check_match(payload: dict) -> str:
+    if not payload.get("ok", True):
+        return str(payload)
+    matches = payload.get("matches") or []
+    if not matches:
+        return "no candidate"
+    top = matches[0]
+    return f"{top['id']} {top['name']} score={top['score']} via={top['matched_on']}"
+
+
+def _check_update(payload: dict) -> str:
+    character = payload.get("character") or {}
+    return (
+        f"{payload.get('action')} {character.get('id')} {character.get('name')} "
+        f"aliases={len(character.get('aliases') or [])} overlay={payload.get('overlay')}"
+    )
+
+
+def _check_correct(payload: dict) -> str:
+    return f"{payload.get('action')} {payload.get('term')} -> {payload.get('name')}"
+
+
 def _check_art(payload: dict) -> str:
     images = payload.get("results") or []
     if not images:
@@ -120,6 +143,9 @@ async def run(
     if avatars:
         env["ANINEST_PCR_AVATARS"] = str(Path(avatars).expanduser().resolve())
     env.setdefault("PYTHONPATH", str(ROOT / "src"))
+    # Exercise the two write tools against a throwaway overlay, never the real one.
+    scratch = tempfile.TemporaryDirectory(prefix="aninest-live-")
+    env["ANINEST_PCR_OVERLAY"] = str(Path(scratch.name) / "pcr_overlay.json")
     params = StdioServerParameters(
         command=sys.executable, args=["-m", "aninest"], env=env, cwd=str(ROOT)
     )
@@ -133,6 +159,10 @@ async def run(
         ("memory_search", {"query": "竞技场", "limit": 2}, _check_memory_search, True),
         ("character_lookup", {"query": "布丁 克总", "limit": 3}, _check_character, True),
         ("arena_lookup", arena_args, _check_arena, True),
+        ("character_match", {"query": "宫紫", "threshold": 0.4}, _check_match, True),
+        ("character_update", {"char_id": 199901, "name": "检查用角色", "jp": "チェック用",
+                              "aliases": ["检查别名"]}, _check_update, True),
+        ("character_correct", {"term": "宫紫", "char_id": 100701}, _check_correct, True),
         ("art_search", {"query": "hatsune_miku swimsuit", "count": 1},
          _check_art, not skip_network),
     ]

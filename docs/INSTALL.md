@@ -75,8 +75,8 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "git+https://github.com/
 > **注意**：本仓库**没有发布到 PyPI**，所以 `pip install aninest-mcp` 会 404。
 > 上面这条 git URL 才是官方装法。要装进独立环境而不动系统 Python，用 `pipx install "git+…"`。
 
-实测记录（2026-10-29，全新 venv，pip 25.2）：装出 `aninest_mcp-0.3.0`，
-`aninest-mcp.exe` 可直接启动，握手协商到 `protocol=2025-11-25`，`tools/list` 返回 7 个工具。
+实测记录（2026-10-29，全新 venv，pip 25.2）：装出 `aninest_mcp-0.4.0`，
+`aninest-mcp.exe` 可直接启动，握手协商到 `protocol=2025-11-25`，`tools/list` 返回 10 个工具。
 
 ## C. clone 下来开发
 
@@ -88,7 +88,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate     macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m unittest discover -s tests    # 139 个用例
+python -m unittest discover -s tests    # 162 个用例
 python eval/run_eval.py                 # 离线评测 26/26
 python scripts/live_check.py            # 打真服务，全过才 exit 0
 ```
@@ -112,14 +112,14 @@ docker build --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-s
 ```
 
 镜像行为实测（Docker 29.9.2，Linux 容器）：以 `uid=10001` 非 root 运行、`HEALTHCHECK` 转 healthy、
-`initialize` 返回 `serverInfo.version = 0.3.0`、`tools/list` 返回 7 个工具。
+`initialize` 返回 `serverInfo.version = 0.4.0`、`tools/list` 返回 10 个工具。
 容器里用 HTTP 传输（`ANINEST_MCP_TRANSPORT=streamable-http`），宿主机请只映射到 `127.0.0.1`。
 
 ---
 
 ## 可选：让识图能用（`[vision]` + 头像包）
 
-只有 `portrait_identify`（看一张裁好的头像，说出是哪个角色）需要这一步，其余六个工具不用装也不用配。
+只有 `portrait_identify`（看一张裁好的头像，说出是哪个角色）需要这一步，其余九个工具不用装也不用配。
 
 ```bash
 # 1) 装可选依赖（numpy + Pillow）
@@ -193,7 +193,7 @@ python scripts/live_check.py --avatars demo_avatars
 npx @modelcontextprotocol/inspector aninest-mcp
 ```
 
-左栏 `tools/list` 能看到七个工具，点任意一个填参数就能调。`portrait_identify` 要装过 `[vision]` 且配了
+左栏 `tools/list` 能看到十个工具，点任意一个填参数就能调。`portrait_identify` 要装过 `[vision]` 且配了
 `ANINEST_PCR_AVATARS` 才有结果，否则它会明确报错说明缺哪一步。
 
 ---
@@ -206,7 +206,7 @@ npx @modelcontextprotocol/inspector aninest-mcp
 # 1) 服务自己能起、协议能握手（无需网络、无需账号）
 python scripts/mcp_smoke.py
 
-# 2) 七个工具逐个调——对着你本机真正在跑的服务
+# 2) 十个工具逐个调——对着你本机真正在跑的服务
 python scripts/live_check.py --memory-db <你的 memory.db>
 #    头像包就位时，顺带验一下识图
 python scripts/live_check.py --avatars demo_avatars

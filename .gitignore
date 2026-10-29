@@ -30,3 +30,6 @@ eval/report.json
 .idea/
 .DS_Store
 Thumbs.db
+
+# 由 scripts/make_demo_avatars.py 生成，不入库
+demo/avatars/

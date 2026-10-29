@@ -43,6 +43,14 @@ class Settings:
     #: Directory of character avatars named ``<six-digit-id>.webp``; empty means
     #: portrait_identify is unavailable. Game art is not redistributed with the repo.
     pcr_avatars: str = field(default_factory=lambda: _env("ANINEST_PCR_AVATARS", ""))
+    #: Local overrides for the packaged character table: aliases you added, names
+    #: you corrected, characters that shipped before the table did. Kept outside
+    #: the package so upgrades never overwrite it.
+    pcr_overlay: Path = field(
+        default_factory=lambda: Path(
+            _env("ANINEST_PCR_OVERLAY", str(Path.home() / ".aninest" / "pcr_overlay.json"))
+        )
+    )
 
 
 SETTINGS = Settings()
