@@ -20,7 +20,7 @@ import re
 import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from functools import lru_cache
 from importlib import resources
 from pathlib import Path
@@ -842,7 +842,7 @@ def record_correction(
                 "term": key,
                 "id": target.id,
                 "note": note.strip(),
-                "at": datetime.now(UTC).isoformat(timespec="seconds"),
+                "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             }
         )
 
