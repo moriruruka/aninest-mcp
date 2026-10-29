@@ -8,9 +8,18 @@
 
 - `arena_lookup` 原本接受 1–6 个角色 id，但游戏里一队只有 5 人：上限改为 **5 个不重复 id**
   （去重后才计数量，部分阵容仍合法），并同步工具描述、README 与威胁模型。
+- `arena_lookup` 读取的是**上游真实结构**，此前按臆想的扁平行解析（`defense`/`attack`/`views`），
+  接真实服务时恒返回 0 支队伍，而 fixture 测试全绿。现在会向下走到第一个队伍列表，
+  从 `[{id, star, equip}]` 里取角色 id，票数用 `up`/`down`，不再编造播放量。
+  回归样本：`tests/fixtures/arena_payload.json`（真实返回截取）。
+- `scripts/fake_arena.py` 的响应结构同步为真实形状，避免替身把错误结构“验成正确”。
 
 ### Added
 
+- `scripts/live_check.py`：对着**本机真实运行的服务**做端到端检查——真实 MCP stdio 起 server，
+  逐个调五个工具并打印一行结果，全过才返回 0；带 `--skip-network`、`--ids`。
+- `docs/TESTING.md`：分层验证手册（lint → 单测 → 离线评测 → 替身演示 → 真机联调），
+  每层写明“能证明什么、不能证明什么”，附失败排查表与已知未覆盖清单。
 - `demo/host.py`：最小 MCP 宿主（26 行路由 + 结构化结果说人话），证明 server 不依赖特定客户端。
 - `demo/story.py`：一条命令跑完整段对话——起假作业服务、造示例记忆库、经真实 stdio 协议调三个工具。
 - `tests/test_demo_router.py`：8 个用例覆盖路由与结果转述；连同阵容校验的两条新用例，单测总数 55 → 65。

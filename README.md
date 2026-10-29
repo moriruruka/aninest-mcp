@@ -35,6 +35,7 @@
 - [设计取舍](docs/DECISIONS.md)
 - [威胁模型：它能动什么、谁能让它动](docs/THREAT_MODEL.md)
 - [代码结构与改动指引](docs/ARCHITECTURE.md)
+- [怎么验证它真的能用](docs/TESTING.md)
 
 ---
 
@@ -348,8 +349,14 @@ python eval/run_eval.py --network --online-cases 18 --json eval/report.json
 | 容器化 | `Dockerfile`（非 root、HEALTHCHECK）、`docker-compose.yml`、`.dockerignore` |
 | CI/CD | `.github/workflows/ci.yml`（lint → test → offline eval → docker build + smoke） |
 | 测试设计 | `tests/` 5 个模块 55 例，纯函数优先；`tests/context.py` 让测试无需安装即可跑 |
-| 文档 | `README.md`、`docs/DECISIONS.md`（ADR）、`docs/ARCHITECTURE.md`（结构与改动指引）、`docs/PRIVACY.md`（数据边界）、`docs/THREAT_MODEL.md`、`CHANGELOG.md` |
+| 文档 | `README.md`、`docs/DECISIONS.md`（ADR）、`docs/ARCHITECTURE.md`（结构与改动指引）、`docs/PRIVACY.md`（数据边界）、`docs/THREAT_MODEL.md`、`docs/TESTING.md`（分层验证手册）、`CHANGELOG.md` |
 | 安全意识 | 只放行 safe 分级、零凭证、只读数据库、`docs/PRIVACY.md` 的 5 条 grep 自查 |
+
+## 验证它
+
+五层验证的分工与逐层命令写在 [docs/TESTING.md](docs/TESTING.md)：lint → 单元测试（67 个）
+→ 离线评测（26 例）→ 替身演示 → 真机联调（`scripts/live_check.py`）。只有第 5 层能证明
+“接你自己的服务仍然工作”。
 
 ## 开发
 
