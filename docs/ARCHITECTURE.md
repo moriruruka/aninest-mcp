@@ -17,7 +17,7 @@ aninest-mcp/
 ├── tests/                  # 162 个 unittest 用例（11 个测试模块），无需安装即可运行
 ├── eval/                   # 26 条 golden case + 离线/联网评测器
 ├── scripts/                # 可复现替身与 MCP 自检
-├── demo/                   # 最小宿主 + 一键 story（端到端演示）
+├── demo/                   # 最小宿主 + 一键 story + 截图→阵容胶水（端到端演示）
 ├── examples/               # 客户端接入样例
 └── docs/                   # 设计取舍、威胁模型、数据边界、规范符合性、本文件
 ```
@@ -112,7 +112,7 @@ aninest-mcp/
 ## 验证记录（本机实测）
 
 - ✅ `ruff check src tests eval scripts demo` → All checks passed
-- ✅ `python -m unittest discover -s tests` → 162 tests OK（含 7 个 MCP 契约用例；没装 `[vision]` 时
+- ✅ `python -m unittest discover -s tests` → 172 tests OK（含 7 个 MCP 契约用例；没装 `[vision]` 时
   `test_portrait.py` 的 11 例跳过，输出为 `OK (skipped=11)`）
 - ✅ `python eval/run_eval.py` → 26/26，recall / precision / 字段准确率均 1.000
 - ✅ `python eval/run_eval.py --network --online-cases 18` → 18/18，p50 1.67 s，p95 1.99 s

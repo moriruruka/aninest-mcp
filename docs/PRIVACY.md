@@ -62,7 +62,7 @@ git log -p --all | grep -niE "sessdata|bili_jct|password" | head
 
 ## 5. 本仓库当前状态
 
-- [x] `python -m unittest discover -s tests` 全绿（162 tests OK，没装 `[vision]` 时 11 例跳过）
+- [x] `python -m unittest discover -s tests` 全绿（172 tests OK，未安装 `[vision]` 时识图用例跳过）
 - [x] 头像包（游戏美术素材）不进仓库：它由 `ANINEST_PCR_AVATARS` 指向使用者自己的目录；仓库里只有
       `scripts/make_demo_avatars.py` 生成的合成头像
 - [x] 本地覆盖层（`ANINEST_PCR_OVERLAY`，默认 `~/.aninest/pcr_overlay.json`）只存名字、别名、
@@ -70,4 +70,4 @@ git log -p --all | grep -niE "sessdata|bili_jct|password" | head
 - [x] `python eval/run_eval.py` 全绿（离线，26/26）
 - [x] `git status` 中没有 `data/`、`logs/`、`.env`、`*.db`
 - [x] 上述 5 条 grep 已逐条核对（无真实号码、凭证、绝对路径、内网地址）
-- [x] `LICENSE` 与 `pyproject.toml` 的作者信息与仓库归属一致
+- [x] `LICENSE` 与 `pyproject.toml` 的维护者信息与仓库归属一致

@@ -60,14 +60,14 @@ python -m unittest discover -s tests
 期望输出（数字会随用例增长）：
 
 ```text
-Ran 162 tests in 7.5s
+Ran 172 tests in 7.1s
 OK (skipped=11)
 ```
 
 `skipped=11` 是没装 `[vision]` 时的正常现象：`test_portrait.py` 那 11 个用例需要 numpy + Pillow，
 装过 `pip install -e ".[vision]"` 之后它们会真的跑起来。
 
-这 162 个用例里，绝大多数只用 fixtures，不联网、不需要服务。它们覆盖：
+这 172 个用例里，绝大多数只用 fixtures，不联网、不需要服务。它们覆盖：
 
 - `test_tagging.py`：中文词 → tag 的别名表、黑名单、方向/尺寸/张数解析、负向 tag
 - `test_art_shape.py`：把图站返回的原始行规整成结果、分级归一（`s`/`safe`/`g`…）、降级阶梯
@@ -79,6 +79,7 @@ OK (skipped=11)
 - `test_memory.py`：只读打开、打分、统计
 - `test_health.py`：端口探活的成功/失败分支
 - `test_demo_router.py`：host 的路由与措辞（不需要真的连 server）
+- `test_screenshot_lineup.py`：宿主侧胶水——矩形切割、`5x3` 网格与 `rows` 偏移、1 基号位、默认从右往左、按识别结果拼 `arena_lookup` 的调用参数
 - `test_server_contract.py`：MCP 契约——工具清单（10 个，并与 `server.EXPECTED_TOOLS` 对表）、schema、title、annotations、resource、prompt
 
 想只跑一个文件：
@@ -116,7 +117,7 @@ python eval/run_eval.py --network --json out.json   # 落盘，便于对比两�
 
 ---
 
-## 4. 替身演示（不需要联网，也不需要你的服务）
+## 4. 替身演示（不需要联网，也不需要本地服务）
 
 ```bash
 python demo/story.py
@@ -150,7 +151,18 @@ ANINEST_ARENA_URL=http://127.0.0.1:6192 python scripts/mcp_smoke.py --call arena
 
 ---
 
-## 5. 真机联调（推荐你自己跑一次）
+另一个演示是**宿主侧胶水**：一张截图 → 按格子裁头像 → 认人 → 查阵容。
+
+```bash
+python demo/screenshot_lineup.py shot.png --grid 5x3 --rows 1 --order rtl
+```
+
+它证明的是“裁剪 + 调工具 + 拼参数”这条链能跑通；不证明任何真实截图的版面都能自动适配
+（那需要宿主自己给格子参数，或后续补 OS 级版面识别）。
+
+---
+
+## 5. 真机联调（建议在目标机器上跑一次）
 
 ```bash
 python scripts/live_check.py
@@ -209,7 +221,7 @@ python scripts/live_check.py --avatars demo_avatars       # 头像包就位时�
 | --- | --- | --- |
 | `[FAIL] service_health 3/5 up, down: tts, stt` | 服务没起 | 先启动对应服务；`--skip-network` 不影响这一项 |
 | `[FAIL] memory_stats missing database` | 库路径不对 | 设 `ANINEST_MEMORY_DB` 指向真实 `.db` |
-| `[FAIL] arena_lookup arena browser service is not running …` | 6191 没起 | 起浏览器服务；或指向你自己的实现 |
+| `[FAIL] arena_lookup arena browser service is not running …` | 6191 没起 | 起浏览器服务；或指向其它实现 |
 | `[FAIL] art_search …` 且提示超时 | 图站不通 | 换 `ANINEST_BOORU_URL`，或用 `--skip-network` |
 
 ---

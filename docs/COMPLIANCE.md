@@ -34,7 +34,7 @@
 
 | 项 | 原因 |
 | --- | --- |
-| 提交官方 Registry | Registry 要求"公开可安装"（PyPI / npm / 公开 OCI 镜像）。本项目**不发 PyPI**（作者的选择），所以不提交；等发了包再加 `server.json` 即可。 |
+| 提交官方 Registry | Registry 要求"公开可安装"（PyPI / npm / 公开 OCI 镜像）。本项目**未发布到 PyPI**，所以暂不提交；等发了包再加 `server.json` 即可。 |
 | OAuth / 令牌鉴权 | 本地 stdio 为主，HTTP 只绑 `127.0.0.1`，没有暴露到局域网。 |
 | `resources/subscribe`、进度通知、日志通知 | 当前都是"一次请求一次响应"的短调用，用不上；等有长任务再加。 |
 | 分页（`cursor`） | 结果集都远小于 100，未触发分页。 |

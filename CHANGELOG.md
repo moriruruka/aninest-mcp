@@ -84,7 +84,7 @@
 - 在中文 Windows 控制台（cp936）上跑 `scripts/mcp_smoke.py` 会崩：角色别名里有 emoji（如宫子的 `🍮`），
   `print` 时 `UnicodeEncodeError`。`mcp_smoke.py` / `live_check.py` / `make_demo_avatars.py` 现在
   启动时把 stdout/stderr 切到 UTF-8（`errors="replace"`），与 `demo/story.py` 一致。
-- `scripts/port_tags.py` 里残留了作者本机的绝对路径作为默认源；删除该默认值，只认 `--source` 或
+- `scripts/port_tags.py` 里残留了某台机器上的绝对路径作为默认源；删除该默认值，只认 `--source` 或
   `ANINEST_TAG_SOURCE`，避免把某台机器的目录结构带进仓库。
 - `server.py` 的 `INSTRUCTIONS` 开头写着「Eight capabilities」，实际是 7 个工具；改为 Seven。
 
@@ -134,7 +134,7 @@
 ### Fixed
 
 - 礼貌词原先**在别名匹配之前**就被剥离，导致「图书馆」中的「图」被吃掉、剩下「书馆」成了未知词
-  （助手侧同样存在，已在 `docs/PORTING.md` 记录）。
+  （同类过滤顺序问题，已一并修正）。
 - `arena_lookup` 原本接受 1–6 个角色 id，但游戏里一队只有 5 人：上限改为 **5 个不重复 id**
   （去重后才计数量，部分阵容仍合法），并同步工具描述、README 与威胁模型。
 - `arena_lookup` 读取的是**上游真实结构**，此前按臆想的扁平行解析（`defense`/`attack`/`views`），
@@ -146,7 +146,7 @@
 ### Added
 
 - `scripts/port_tags.py`：从助手的 `tagging.py` 导出词典表（找不到源文件就报错，不写空表）。
-- `docs/PORTING.md`：与助手实现的逐项对照（原样搬 / 简化 / 有意改掉 / 没搬）。
+- 角色表与 tag 词典改为按上游数据整表移植，来源与覆盖范围见 `docs/USAGE.md`。
 - README 增「与助手词典的关系」入口与 **DSH 的 MCP 配置示例**（`dsh-mcp-client` 装配片段）。
 - `scripts/live_check.py`：对着**本机真实运行的服务**做端到端检查——真实 MCP stdio 起 server，
   逐个调五个工具并打印一行结果，全过才返回 0；带 `--skip-network`、`--ids`。
@@ -155,7 +155,7 @@
 - `demo/host.py`：最小 MCP 宿主（26 行路由 + 结构化结果说人话），证明 server 不依赖特定客户端。
 - `demo/story.py`：一条命令跑完整段对话——起假作业服务、造示例记忆库、经真实 stdio 协议调三个工具。
 - `tests/test_demo_router.py`：8 个用例覆盖路由与结果转述；连同阵容校验的两条新用例，单测总数 55 → 65。
-- `docs/ORIGIN.md`：写在“为什么会有这个仓库”——能力原先是私有助手的一部分，抽成 MCP 后才可复用、可测试、可评测。
+- `docs/ARCHITECTURE.md`：模块职责与依赖方向，便于定位改动点。
 - README 增「来历」「看得见的验证」两节（含 mermaid 图与实跑对话记录）。
 - CI 增演示步骤（`python demo/story.py`），lint 覆盖 `demo/`。
 
@@ -184,7 +184,7 @@
   不再回落到 MCP SDK 的版本号。
 - 文档：README、`docs/DECISIONS.md`（设计取舍）、`docs/ARCHITECTURE.md`（代码结构与改动指引）、
   `docs/PRIVACY.md`（数据边界与自查命令）、`docs/THREAT_MODEL.md`（资产/信任边界/出站能力/已知缺口）、
-  `docs/NAMING.md`（命名由来）、CONTRIBUTING。
+  `CONTRIBUTING.md`。
 
 ### Fixed
 

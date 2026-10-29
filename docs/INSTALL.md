@@ -212,7 +212,8 @@ python scripts/live_check.py --memory-db <你的 memory.db>
 python scripts/live_check.py --avatars demo_avatars
 
 # 3) 一段完整对话（假作业服务 + 示例记忆库，真实 stdio 协议）
-python demo/story.py
+python demo/story.py          # 一段完整对话
+python demo/screenshot_lineup.py shot.png   # 截图 → 阵容（需自备截图）
 ```
 
 第 2 层会打印一行一个结果，全过才是 `exit 0`。若某项失败，它会直接告诉你是端口没起、数据库不存在，还是图站连不上。
