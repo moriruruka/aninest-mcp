@@ -88,7 +88,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate     macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m unittest discover -s tests    # 162 个用例
+python -m unittest discover -s tests    # 172 个用例
 python eval/run_eval.py                 # 离线评测 26/26
 python scripts/live_check.py            # 打真服务，全过才 exit 0
 ```

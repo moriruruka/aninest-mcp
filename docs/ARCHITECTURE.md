@@ -14,7 +14,7 @@ aninest-mcp/
 │   ├── server.py           # FastMCP 注册：10 工具 + 1 resource + 1 prompt
 │   ├── data/pcr_chars.json # 351 个角色 / 2211 条别名（scripts/port_characters.py 生成）
 │   └── tools/              # 十个工具的实现（每个文件一个领域）
-├── tests/                  # 162 个 unittest 用例（11 个测试模块），无需安装即可运行
+├── tests/                  # 172 个 unittest 用例（12 个测试模块），无需安装即可运行
 ├── eval/                   # 26 条 golden case + 离线/联网评测器
 ├── scripts/                # 可复现替身与 MCP 自检
 ├── demo/                   # 最小宿主 + 一键 story + 截图→阵容胶水（端到端演示）
