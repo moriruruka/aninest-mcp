@@ -14,7 +14,7 @@ HEALTH_JSON = (
     '{"host":"127.0.0.1","up":1,"total":2,'
     '"services":{"a":{"port":1,"up":true},"b":{"port":2,"up":false}}}'
 )
-ARENA_JSON = '{"found":1,"teams":[{"team":[1,2],"likes":9,"views":30}]}'
+ARENA_JSON = '{"found":1,"teams":[{"defense":[100101,100201],"upvotes":9,"downvotes":0}]}'
 
 
 class RouterTest(unittest.TestCase):

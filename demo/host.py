@@ -119,11 +119,15 @@ def _speak(tool: str, payload: str) -> str:
         if not teams:
             return "作业网这次没给结果。"
         first = teams[0]
-        lineup = " / ".join(str(n) for n in (first.get("team") or [])) or "（未知阵容）"
-        return (
-            f"找到 {data.get('found', len(teams))} 支队伍，最热门的是：{lineup}"
-            f"（赞 {first.get('likes')}、浏览 {first.get('views')}）。"
-        )
+        lineups = first.get("defense") or first.get("attack") or []
+        lineup = " / ".join(str(n) for n in lineups) or "（未知阵容）"
+        votes = []
+        if first.get("upvotes") is not None:
+            votes.append(f"赞 {first['upvotes']}")
+        if first.get("downvotes") is not None:
+            votes.append(f"踩 {first['downvotes']}")
+        tail = f"（{'、'.join(votes)}）" if votes else ""
+        return f"找到 {data.get('found', len(teams))} 支队伍，最热门的是：{lineup}{tail}。"
 
     if tool == "art_search":
         images = data.get("results") or []

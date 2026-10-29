@@ -203,14 +203,36 @@ host > 想起 1 条，最相关的是：「用户偏好竖构图的人物插画�
 
 你   > 查一下 100141 100241 100341 100441 100541 的作业
 host > 调 arena_lookup({"def_ids": [100141, 100241, 100341, 100441, 100541], "limit": 3})
-mcp  > { "found": 2, "teams": [{ "team": [...], "likes": 128, "views": 4210 }] }
-host > 找到 2 支队伍，最热门的是：100141 / 100241 / 100341 / 100441 / 100541（赞 128、浏览 4210）。
+mcp  > { "found": 2, "teams": [{ "defense": [100201, 110501, 102301, 100101, 114701], "upvotes": 1 }] }
+host > 找到 2 支队伍，最热门的是：100201 / 110501 / 102301 / 100101 / 114701（赞 1、踩 0）。
 ```
 
 `demo/host.py` 只做两件事：**把一句话映射成工具名 + 参数**（`route()`），**把返回的 JSON 说成人话**（`_speak()`）。
 换成真模型做这两步，就是任何 MCP 客户端的日常。`tests/test_demo_router.py` 覆盖了这套路由（8 个用例）。
 
 > `art_search` 在 demo 里没有演，因为它要真联网抓图；联网行为由 `python eval/run_eval.py --network` 覆盖。
+
+### 对着你自己的服务再验一遍
+
+demo 用的是替身，真正能说明“它在你机器上活着”的是这个脚本——它连你自己正在跑的五个服务，
+逐个调一遍，打印一行结果，全过才返回 0：
+
+```bash
+python scripts/live_check.py            # 默认 5 项全查
+python scripts/live_check.py --skip-network   # 没网时跳过 art_search
+```
+
+在本机实测（AstrBot 全景在跑、记忆库 36 条）：
+
+```text
+[ ok ] service_health  5/5 up
+[ ok ] memory_stats    rows=36 global=5 session=31
+[ ok ] memory_search   scanned=36 matched=2
+[ ok ] arena_lookup    found=10 defense=[100201, 110501, 102301, 100101, 114701] up=1
+[ ok ] art_search      1 image(s), 665x957 rating=safe
+
+all checks passed
+```
 
 ## 接入客户端
 

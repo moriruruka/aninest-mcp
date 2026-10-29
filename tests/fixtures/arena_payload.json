@@ -1,0 +1,148 @@
+{
+  "ok": true,
+  "data": {
+    "code": 0,
+    "message": "0",
+    "data": {
+      "result": [
+        {
+          "id": "687e56f1071db9fa8609e532",
+          "atk": [
+            {
+              "equip": false,
+              "id": 129001,
+              "star": 5
+            },
+            {
+              "equip": false,
+              "id": 132001,
+              "star": 5
+            },
+            {
+              "equip": false,
+              "id": 123001,
+              "star": 5
+            },
+            {
+              "equip": true,
+              "id": 126101,
+              "star": 5
+            },
+            {
+              "equip": true,
+              "id": 108901,
+              "star": 6
+            }
+          ],
+          "def": [
+            {
+              "equip": true,
+              "id": 100201,
+              "star": 6
+            },
+            {
+              "equip": true,
+              "id": 110501,
+              "star": 5
+            },
+            {
+              "equip": true,
+              "id": 102301,
+              "star": 6
+            },
+            {
+              "equip": true,
+              "id": 100101,
+              "star": 6
+            },
+            {
+              "equip": true,
+              "id": 114701,
+              "star": 5
+            }
+          ],
+          "iseditor": false,
+          "private": false,
+          "group": false,
+          "updated": "2025-07-21T15:04:17.372Z",
+          "up": 1,
+          "down": 0,
+          "comment": null,
+          "liked": false,
+          "disliked": false
+        },
+        {
+          "id": "67754a2dec0871f23220efb4",
+          "atk": [
+            {
+              "equip": true,
+              "id": 100801,
+              "star": 6
+            },
+            {
+              "equip": true,
+              "id": 127201,
+              "star": 5
+            },
+            {
+              "equip": false,
+              "id": 118501,
+              "star": 5
+            },
+            {
+              "equip": false,
+              "id": 123001,
+              "star": 5
+            },
+            {
+              "equip": true,
+              "id": 101401,
+              "star": 6
+            }
+          ],
+          "def": [
+            {
+              "equip": true,
+              "id": 100201,
+              "star": 6
+            },
+            {
+              "equip": true,
+              "id": 122401,
+              "star": 5
+            },
+            {
+              "equip": true,
+              "id": 122501,
+              "star": 5
+            },
+            {
+              "equip": true,
+              "id": 100301,
+              "star": 6
+            },
+            {
+              "equip": true,
+              "id": 100101,
+              "star": 6
+            }
+          ],
+          "iseditor": false,
+          "private": false,
+          "group": false,
+          "updated": "2025-01-01T13:59:09.059Z",
+          "up": 0,
+          "down": 0,
+          "comment": null,
+          "liked": false,
+          "disliked": false
+        }
+      ],
+      "page": {
+        "page": 1,
+        "hasMore": false
+      }
+    },
+    "version": "20261024"
+  }
+}

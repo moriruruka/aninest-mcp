@@ -34,26 +34,71 @@ def validate_ids(def_ids: list[int]) -> list[int]:
     return out
 
 
-def summarise(payload: dict, limit: int = 3) -> dict:
-    """Flatten the upstream payload into a small, model-friendly structure."""
-    teams = payload.get("result") or payload.get("data") or payload
-    if isinstance(teams, dict):
-        teams = teams.get("result") or teams.get("data") or []
-    if not isinstance(teams, list):
-        teams = []
-    summaries = []
-    for row in teams[:limit]:
-        if not isinstance(row, dict):
+def _row_list(node: object, depth: int = 0) -> list[dict]:
+    """Find the first list of team records, wherever the service nests it.
+
+    The live service answers `{"ok": true, "data": {"code": 0, "data": {"result": [...]}}}`,
+    so the rows sit two levels below the top. Walking down instead of hard-coding the
+    path keeps the tool working if a version adds or drops one wrapper.
+    """
+    if depth > 6:
+        return []
+    if isinstance(node, list):
+        dicts = [item for item in node if isinstance(item, dict)]
+        if dicts and any("atk" in item or "def" in item for item in dicts):
+            return dicts
+        for item in node:
+            found = _row_list(item, depth + 1)
+            if found:
+                return found
+        return []
+    if isinstance(node, dict):
+        for key in ("result", "data", "teams", "list"):
+            if key in node:
+                found = _row_list(node[key], depth + 1)
+                if found:
+                    return found
+        for value in node.values():
+            found = _row_list(value, depth + 1)
+            if found:
+                return found
+    return []
+
+
+def _unit_ids(units: object) -> list[int]:
+    """Character ids out of `[{id, star, equip}, ...]` (or a plain id list)."""
+    if not isinstance(units, list):
+        return []
+    ids: list[int] = []
+    for unit in units:
+        value = unit.get("id") if isinstance(unit, dict) else unit
+        try:
+            ids.append(int(value))
+        except (TypeError, ValueError):
             continue
+    return ids
+
+
+def summarise(payload: dict, limit: int = 3) -> dict:
+    """Flatten the upstream payload into a small, model-friendly structure.
+
+    Field names are the live ones: `def` / `atk` hold unit objects, and the counters are
+    `up` / `down` (votes). There is no view counter upstream — don't invent one.
+    """
+    rows = _row_list(payload)
+    summaries = []
+    for row in rows[:limit]:
         summaries.append(
             {
-                "team": row.get("atk") or row.get("def") or row.get("team"),
-                "likes": row.get("likes") or row.get("like_num"),
-                "views": row.get("views") or row.get("view_num"),
-                "updated": row.get("updated") or row.get("modified"),
+                "defense": _unit_ids(row.get("def")),
+                "attack": _unit_ids(row.get("atk")),
+                "upvotes": row.get("up"),
+                "downvotes": row.get("down"),
+                "updated": row.get("updated"),
+                "ref": row.get("id"),
             }
         )
-    return {"found": len(teams), "teams": summaries}
+    return {"found": len(rows), "teams": summaries}
 
 
 async def arena_lookup(def_ids: list[int], region: int = 1, limit: int = 3) -> dict:
