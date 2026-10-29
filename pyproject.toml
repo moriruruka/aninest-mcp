@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aninest-mcp"
-version = "0.4.1"
+version = "0.4.2"
 description = "AniNest: an MCP server that nests an ACG-loving assistant's local capabilities (illustration search, game lineup lookup by name or portrait, memory retrieval, service health) behind seven tools."
 readme = "README.md"
 requires-python = ">=3.10"

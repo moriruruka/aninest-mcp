@@ -75,7 +75,7 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "git+https://github.com/
 > **注意**：本仓库**没有发布到 PyPI**，所以 `pip install aninest-mcp` 会 404。
 > 上面这条 git URL 才是官方装法。要装进独立环境而不动系统 Python，用 `pipx install "git+…"`。
 
-实测记录（2026-10-29，全新 venv，pip 25.2）：装出 `aninest_mcp-0.4.1`，
+实测记录（2026-10-29，全新 venv，pip 25.2）：装出 `aninest_mcp-0.4.2`，
 `aninest-mcp.exe` 可直接启动，握手协商到 `protocol=2025-11-25`，`tools/list` 返回 10 个工具。
 
 ## C. clone 下来开发
@@ -112,7 +112,7 @@ docker build --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-s
 ```
 
 镜像行为实测（Docker 29.9.2，Linux 容器）：以 `uid=10001` 非 root 运行、`HEALTHCHECK` 转 healthy、
-`initialize` 返回 `serverInfo.version = 0.4.1`、`tools/list` 返回 10 个工具。
+`initialize` 返回 `serverInfo.version = 0.4.2`、`tools/list` 返回 10 个工具。
 容器里用 HTTP 传输（`ANINEST_MCP_TRANSPORT=streamable-http`），宿主机请只映射到 `127.0.0.1`。
 
 ---

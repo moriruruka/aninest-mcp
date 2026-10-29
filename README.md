@@ -171,7 +171,7 @@ python scripts/mcp_smoke.py --call art_search --args '{"query":"初音未来 泳
 | `ANINEST_MCP_HOST` / `ANINEST_MCP_PORT` | `127.0.0.1` / `8765` | 仅 HTTP/SSE 模式生效 |
 | `ANINEST_BOORU_URL` | `https://safebooru.org/index.php` | 任何 Gelbooru 风格 JSON API |
 | `ANINEST_HTTP_TIMEOUT` | `15` | 秒 |
-| `ANINEST_USER_AGENT` | `aninest-mcp/0.4.1 (+…)` | 图站要求可识别的 UA |
+| `ANINEST_USER_AGENT` | `aninest-mcp/0.4.2 (+…)` | 图站要求可识别的 UA |
 | `ANINEST_ARENA_URL` | `http://127.0.0.1:6191` | 作业查询服务（见下文"本机依赖"） |
 | `ANINEST_MEMORY_DB` | `~/.aninest/memory.db` | 只读打开 |
 | `ANINEST_PROBE_HOST` | `127.0.0.1` | 健康探测目标 |
