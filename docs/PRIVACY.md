@@ -56,7 +56,7 @@ git log -p --all | grep -niE "sessdata|bili_jct|password" | head
 
 ## 5. 本仓库当前状态
 
-- [x] `python -m unittest discover -s tests` 全绿（55 tests OK）
+- [x] `python -m unittest discover -s tests` 全绿（63 tests OK）
 - [x] `python eval/run_eval.py` 全绿（离线，26/26）
 - [x] `git status` 中没有 `data/`、`logs/`、`.env`、`*.db`
 - [x] 上述 5 条 grep 已逐条核对（无真实号码、凭证、绝对路径、内网地址）

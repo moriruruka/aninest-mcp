@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+
+- `demo/host.py`：最小 MCP 宿主（26 行路由 + 结构化结果说人话），证明 server 不依赖特定客户端。
+- `demo/story.py`：一条命令跑完整段对话——起假作业服务、造示例记忆库、经真实 stdio 协议调三个工具。
+- `tests/test_demo_router.py`：8 个用例覆盖路由与结果转述，单测总数 55 → 63。
+- `docs/ORIGIN.md`：写在“为什么会有这个仓库”——能力原先是私有助手的一部分，抽成 MCP 后才可复用、可测试、可评测。
+- README 增「来历」「看得见的验证」两节（含 mermaid 图与实跑对话记录）。
+- CI 增演示步骤（`python demo/story.py`），lint 覆盖 `demo/`。
+
 ## [0.1.0] - 2026-10-29
 
 首个公开版本：把个人助手（AniNest）的四类本地能力暴露为 MCP 工具。

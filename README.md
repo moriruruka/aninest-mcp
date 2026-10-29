@@ -13,16 +13,18 @@
 都能发现并调用这五个工具，而不用知道背后是哪个图站、哪个本地服务、哪个游戏。
 
 > 它不是又一个"封装 API 的 demo"：包含 tag 编译器、检索降级阶梯、只读 SQLite 检索、本地服务探活，
-> 有 55 个单元测试和一套可回归的评测集，CI 在 Linux/Windows × Python 3.10/3.12/3.13 上跑。
+> 有 63 个单元测试和一套可回归的评测集，CI 在 Linux/Windows × Python 3.10/3.12/3.13 上跑。
 
 ---
 
 ## 目录
 
 - [它解决什么问题](#它解决什么问题)
+- [来历：从私有助手拆出来的能力层](#来历从私有助手拆出来的能力层)
 - [架构](#架构)
 - [五个工具](#五个工具)
 - [快速开始](#快速开始)
+- [看得见的验证：一条命令跑完整段对话](#看得见的验证一条命令跑完整段对话)
 - [接入客户端](#接入客户端)
 - [配置项](#配置项)
 - [可靠性与安全设计](#可靠性与安全设计)
@@ -50,6 +52,30 @@ MCP 把它们变成**协议级工具**：
 | 参数靠口头约定 | 参数有 JSON Schema，宿主负责校验与补全 |
 | 出错只能翻机器人日志 | 工具返回结构化错误，宿主可以决定重试或换路 |
 | 无法被评测 | `eval/run_eval.py` 可回归，CI 里跑 |
+
+## 来历：从私有助手拆出来的能力层
+
+这五个工具不是为写示例而写的，它们原本长在一个**私有**的个人助手里（自己电脑上的 QQ 聊天助手），
+和消息格式、人设、账号登录态缠在一起。把它们抽成协议级工具之后，能力才第一次能被别的宿主复用、被单独测试、被回归评测。
+
+```mermaid
+flowchart LR
+    subgraph priv["私有宿主（未开源）"]
+        A["聊天助手<br/>消息 / 人设 / 语音"]
+    end
+    subgraph pub["AniNest（本仓库）"]
+        S["MCP server<br/>5 tools + 1 prompt"]
+        H["最小宿主 demo/host.py<br/>演示与测试用"]
+    end
+    A -- "MCP（stdio / HTTP）" --> S
+    H -- "MCP（stdio）" --> S
+    S --> B["插画站（booru）"]
+    S --> C["作业查询服务<br/>登录态留在这边"]
+    S --> D["本地 SQLite 记忆库"]
+    S --> E["本机 5 个服务端口"]
+```
+
+完整来历、以及“哪些东西刻意没有开源”见 [docs/ORIGIN.md](docs/ORIGIN.md)。
 
 ## 架构
 
@@ -119,7 +145,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m unittest discover -s tests -v   # 55 tests
+python -m unittest discover -s tests -v   # 63 tests
 python eval/run_eval.py                   # 离线评测，26/26
 
 # stdio 模式（给桌面客户端用）
@@ -147,6 +173,44 @@ docker build --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-s
 
 镜像行为已实测（Docker 29.9.2，Linux 容器）：以 `uid=10001` 非 root 运行、`HEALTHCHECK`
 转 healthy、`initialize` 握手返回 `serverInfo.version = 0.1.0`、`tools/list` 返回全部 5 个工具。
+
+## 看得见的验证：一条命令跑完整段对话
+
+不需要账号、不需要网络、不需要客户端：
+
+```bash
+python demo/story.py
+```
+
+它会在本机起一个假的作业服务、造一个示例记忆库，然后用**最小宿主**通过真实 MCP stdio 协议连上 server，
+把三句话依次变成工具调用，再把返回的结构化结果说成人话。实跑输出：
+
+```text
+[story] 准备：示例记忆库 + 假作业服务
+[story] 连上 server，开始对话
+
+[host] 已连接 5 个工具：art_search、arena_lookup、memory_search、memory_stats、service_health
+
+你   > 本机服务都活着吗
+host > 调 service_health({})
+mcp  > { "host": "127.0.0.1", "up": 5, "total": 5, "services": { ... } }
+host > 5/5 个服务在线。
+
+你   > 帮我回忆一下泳装插画那件事
+host > 调 memory_search({"query": "泳装插画那件事", "limit": 5})
+mcp  > { "scanned": 5, "matched": 1, "hits": [{ "content": "用户偏好竖构图的人物插画，尤其是海边的场景。" }] }
+host > 想起 1 条，最相关的是：「用户偏好竖构图的人物插画，尤其是海边的场景。」
+
+你   > 查一下 100141 100241 100341 100441 100541 的作业
+host > 调 arena_lookup({"def_ids": [100141, 100241, 100341, 100441, 100541], "limit": 3})
+mcp  > { "found": 2, "teams": [{ "team": [...], "likes": 128, "views": 4210 }] }
+host > 找到 2 支队伍，最热门的是：100141 / 100241 / 100341 / 100441 / 100541（赞 128、浏览 4210）。
+```
+
+`demo/host.py` 只做两件事：**把一句话映射成工具名 + 参数**（`route()`），**把返回的 JSON 说成人话**（`_speak()`）。
+换成真模型做这两步，就是任何 MCP 客户端的日常。`tests/test_demo_router.py` 覆盖了这套路由（8 个用例）。
+
+> `art_search` 在 demo 里没有演，因为它要真联网抓图；联网行为由 `python eval/run_eval.py --network` 覆盖。
 
 ## 接入客户端
 
@@ -288,7 +352,7 @@ src/aninest/
     arena.py         # 阵容校验 + 上游 payload 扁平化
     memory.py        # 只读 SQLite 检索与统计
     health.py        # TCP 探活
-tests/               # 55 个 unittest
+tests/               # 63 个 unittest
 eval/                # golden set + 离线/联网评测脚本
 scripts/             # 不依赖客户端的自检脚本
 docs/                # ADR、隐私自查

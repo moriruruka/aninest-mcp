@@ -1,4 +1,4 @@
-# 代码结构与改动指引
+﻿# 代码结构与改动指引
 
 这份文档说明仓库里每个文件负责什么、改动时会牵连到哪些地方，以及当前已经验证到什么程度。
 面向两类读者：想读懂实现的读者，和准备提 PR 的贡献者。
@@ -13,9 +13,10 @@ aninest-mcp/
 │   ├── tagging.py          # 中文口语 → booru tag 编译器（纯函数）
 │   ├── server.py           # FastMCP 注册：5 工具 + 1 resource + 1 prompt
 │   └── tools/              # 五个工具的实现（每个文件一个领域）
-├── tests/                  # 55 个 unittest 用例，无需安装即可运行
+├── tests/                  # 63 个 unittest 用例，无需安装即可运行
 ├── eval/                   # 26 条 golden case + 离线/联网评测器
 ├── scripts/                # 可复现替身与 MCP 自检
+├── demo/                   # 最小宿主 + 一键 story（端到端演示）
 ├── examples/               # 客户端接入样例
 └── docs/                   # 设计取舍、威胁模型、数据边界、本文件
 ```
@@ -64,7 +65,7 @@ aninest-mcp/
 ## 验证记录（本机实测）
 
 - ✅ `ruff check src tests eval scripts` → All checks passed
-- ✅ `python -m unittest discover -s tests` → 55 tests OK
+- ✅ `python -m unittest discover -s tests` → 63 tests OK
 - ✅ `python eval/run_eval.py` → 26/26，recall / precision / 字段准确率均 1.000
 - ✅ `python eval/run_eval.py --network --online-cases 18` → 18/18，p50 1.67 s，p95 1.99 s
 - ✅ `python scripts/mcp_smoke.py --call service_health` → 5 个工具 + prompt 可见，工具返回 JSON
