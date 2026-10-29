@@ -2,6 +2,21 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+
+- `demo/screenshot_lineup.py`：宿主侧胶水示例——一张截图按格子裁出头像，依次
+  `portrait_identify`，再把同一行的五个 id 交给 `arena_lookup`；号位默认从右往左。
+  配套 `tests/test_screenshot_lineup.py` 覆盖切图几何、1 基号位与调用参数。
+- `docs/USAGE.md` 第 12 节：说明为什么版面适配留在宿主、能力层保持无状态。
+
+### Changed
+
+- README 与各文档改成面向使用者的写法（快速开始 / 工具 / 演示 / 接入客户端 / 配置 /
+  测试 / 架构 / 安全 / 常见问题），删除只对原始开发环境有意义的说明文档。
+- 测试计数同步到 172 个用例。
+
 ## [0.4.1] - 2026-10-29
 
 ### Fixed

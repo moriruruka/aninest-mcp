@@ -537,7 +537,7 @@ python eval/run_eval.py
 python scripts/live_check.py --memory-db <你的 memory.db>
 ```
 
-## 宿主侧胶水：从一张截图到一套阵容
+## 12. 宿主侧胶水：从一张截图到一套阵容
 
 `portrait_identify` 只回答"这张**已经裁好**的头像图是谁"。截图里怎么找到头像、
 怎么把同一行的五个头像组成一队，属于宿主的版面适配，仓库给了一个可直接运行的参考实现：
