@@ -37,6 +37,19 @@ READ_ONLY_OPEN = ToolAnnotations(
     openWorldHint=True,
 )
 
+#: The tool set this server promises. Kept next to the registration so CI, the
+#: contract test and the docs can all assert against one list instead of three
+#: hand-maintained copies that drift on every added tool.
+EXPECTED_TOOLS: tuple[str, ...] = (
+    "art_search",
+    "character_lookup",
+    "portrait_identify",
+    "arena_lookup",
+    "memory_search",
+    "memory_stats",
+    "service_health",
+)
+
 INSTRUCTIONS = """\
 AniNest tool server. Seven capabilities:
 - art_search: turn a Chinese illustration request into booru tags, then return image links.

@@ -11,6 +11,7 @@ import unittest
 
 import context  # noqa: F401
 
+from aninest.server import EXPECTED_TOOLS as SERVER_TOOLS
 from aninest.server import mcp
 
 EXPECTED_TOOLS = {
@@ -32,6 +33,8 @@ class ToolSurfaceTest(unittest.TestCase):
     def test_all_tools_listed(self) -> None:
         names = {tool.name for tool in _tools()}
         self.assertEqual(names, set(EXPECTED_TOOLS))
+        # The package's own contract list must match what this test documents.
+        self.assertEqual(set(SERVER_TOOLS), set(EXPECTED_TOOLS))
 
     def test_every_tool_has_schema_and_description(self) -> None:
         for tool in _tools():
