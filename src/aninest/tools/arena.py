@@ -9,11 +9,14 @@ from ..config import SETTINGS
 
 
 def validate_ids(def_ids: list[int]) -> list[int]:
-    """Normalise and validate six-digit character ids. Pure function."""
+    """Normalise and validate six-digit character ids. Pure function.
+
+    A defence lineup is five characters, so one to five distinct ids is accepted:
+    partial lineups are legitimate (a screenshot may hide a slot, and the reference
+    service answers such queries too), but six is not a lineup the game has.
+    """
     if not def_ids:
         raise ValueError("def_ids is empty")
-    if len(def_ids) > 6:
-        raise ValueError("at most 6 character ids are allowed")
     out: list[int] = []
     for raw in def_ids:
         try:
@@ -24,6 +27,10 @@ def validate_ids(def_ids: list[int]) -> list[int]:
             raise ValueError(f"character id out of range: {value}")
         if value not in out:
             out.append(value)
+    if len(out) > 5:
+        raise ValueError(
+            f"a defence lineup has 5 characters, got {len(out)} distinct ids"
+        )
     return out
 
 
@@ -53,9 +60,9 @@ async def arena_lookup(def_ids: list[int], region: int = 1, limit: int = 3) -> d
     """Look up defence teams for a lineup through the local arena browser service.
 
     Args:
-        def_ids: 1-6 six-digit character ids that form the defence lineup.
+        def_ids: 1-5 six-digit character ids that form the defence lineup.
         region: arena region id (1 = main).
-        limit: how many teams to summarise (1-6).
+        limit: how many teams to summarise (1-6, a display cap rather than a game rule).
     """
     try:
         ids = validate_ids(list(def_ids))

@@ -4,11 +4,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `arena_lookup` 原本接受 1–6 个角色 id，但游戏里一队只有 5 人：上限改为 **5 个不重复 id**
+  （去重后才计数量，部分阵容仍合法），并同步工具描述、README 与威胁模型。
+
 ### Added
 
 - `demo/host.py`：最小 MCP 宿主（26 行路由 + 结构化结果说人话），证明 server 不依赖特定客户端。
 - `demo/story.py`：一条命令跑完整段对话——起假作业服务、造示例记忆库、经真实 stdio 协议调三个工具。
-- `tests/test_demo_router.py`：8 个用例覆盖路由与结果转述，单测总数 55 → 63。
+- `tests/test_demo_router.py`：8 个用例覆盖路由与结果转述；连同阵容校验的两条新用例，单测总数 55 → 65。
 - `docs/ORIGIN.md`：写在“为什么会有这个仓库”——能力原先是私有助手的一部分，抽成 MCP 后才可复用、可测试、可评测。
 - README 增「来历」「看得见的验证」两节（含 mermaid 图与实跑对话记录）。
 - CI 增演示步骤（`python demo/story.py`），lint 覆盖 `demo/`。

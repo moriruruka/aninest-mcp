@@ -13,7 +13,7 @@
 都能发现并调用这五个工具，而不用知道背后是哪个图站、哪个本地服务、哪个游戏。
 
 > 它不是又一个"封装 API 的 demo"：包含 tag 编译器、检索降级阶梯、只读 SQLite 检索、本地服务探活，
-> 有 63 个单元测试和一套可回归的评测集，CI 在 Linux/Windows × Python 3.10/3.12/3.13 上跑。
+> 有 65 个单元测试和一套可回归的评测集，CI 在 Linux/Windows × Python 3.10/3.12/3.13 上跑。
 
 ---
 
@@ -106,7 +106,7 @@ flowchart LR
 | 工具 | 作用 | 关键参数 | 返回 |
 | --- | --- | --- | --- |
 | `art_search` | 中文/英文描述 → 图站检索 → 图片链接 | `query`、`count`、`size`、`orientation`、`extra_tags`、`negative` | `tags`、`tags_used`、`relaxed`、`results[]`（含 `image_url` / 尺寸 / 分级） |
-| `arena_lookup` | 阵容 → 防守作业摘要 | `def_ids`（1–6 个六位角色 id）、`region`、`limit` | `found`、`teams[]` |
+| `arena_lookup` | 阵容 → 防守作业摘要 | `def_ids`（1–5 个六位角色 id，一队 5 人）、`region`、`limit` | `found`、`teams[]` |
 | `memory_search` | 本地记忆检索（只读） | `query`、`limit`、`scope` | `matched`、`hits[]`（含 `score`） |
 | `memory_stats` | 记忆库规模与分布 | — | 行数、`by_scope`、`by_status`、`db_bytes` |
 | `service_health` | 本机服务存活探测 | — | 每个端口的 `up` 与汇总 |
@@ -145,7 +145,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m unittest discover -s tests -v   # 63 tests
+python -m unittest discover -s tests -v   # 65 tests
 python eval/run_eval.py                   # 离线评测，26/26
 
 # stdio 模式（给桌面客户端用）
@@ -352,7 +352,7 @@ src/aninest/
     arena.py         # 阵容校验 + 上游 payload 扁平化
     memory.py        # 只读 SQLite 检索与统计
     health.py        # TCP 探活
-tests/               # 63 个 unittest
+tests/               # 65 个 unittest
 eval/                # golden set + 离线/联网评测脚本
 scripts/             # 不依赖客户端的自检脚本
 docs/                # ADR、隐私自查

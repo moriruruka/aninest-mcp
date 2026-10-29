@@ -32,7 +32,7 @@
 | 工具 | 出站目标 | 由谁决定 | 最坏情况 |
 | --- | --- | --- | --- |
 | `art_search` | `ANINEST_BOORU_URL` + query 串 | 环境变量固定 host，模型只影响 query | 大量请求打图站被封 IP；query 被构造出异常字符 |
-| `arena_lookup` | `ANINEST_ARENA_URL` 的 `POST /search` | 环境变量固定，模型只影响 6 个六位 id | 把内网地址当上游（若环境变量被改） |
+| `arena_lookup` | `ANINEST_ARENA_URL` 的 `POST /search` | 环境变量固定，模型只影响 5 个六位 id | 把内网地址当上游（若环境变量被改） |
 | `memory_search` / `memory_stats` | 本地文件 | 环境变量决定路径 | 读到 `ANINEST_MEMORY_DB` 指向的任意 SQLite |
 | `service_health` | `ANINEST_PROBE_HOST` + 固定 5 个端口 | 环境变量决定 host | 对内网做端口探测（仅 5 个固定端口） |
 

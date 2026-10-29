@@ -65,7 +65,7 @@ aninest-mcp/
 ## 验证记录（本机实测）
 
 - ✅ `ruff check src tests eval scripts` → All checks passed
-- ✅ `python -m unittest discover -s tests` → 63 tests OK
+- ✅ `python -m unittest discover -s tests` → 65 tests OK
 - ✅ `python eval/run_eval.py` → 26/26，recall / precision / 字段准确率均 1.000
 - ✅ `python eval/run_eval.py --network --online-cases 18` → 18/18，p50 1.67 s，p95 1.99 s
 - ✅ `python scripts/mcp_smoke.py --call service_health` → 5 个工具 + prompt 可见，工具返回 JSON

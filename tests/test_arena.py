@@ -20,9 +20,16 @@ class ValidateIdsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_ids([])
 
+    def test_accepts_a_full_lineup(self) -> None:
+        ids = [100101, 100201, 100301, 100401, 100501]
+        self.assertEqual(validate_ids(ids), ids)
+
     def test_rejects_too_many(self) -> None:
         with self.assertRaises(ValueError):
-            validate_ids([100001, 100002, 100003, 100004, 100005, 100006, 100007])
+            validate_ids([100001, 100002, 100003, 100004, 100005, 100006])
+
+    def test_duplicates_do_not_count_towards_the_limit(self) -> None:
+        self.assertEqual(validate_ids([100101] * 6), [100101])
 
     def test_rejects_out_of_range(self) -> None:
         with self.assertRaises(ValueError):

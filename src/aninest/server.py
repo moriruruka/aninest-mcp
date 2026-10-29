@@ -77,9 +77,9 @@ async def arena_lookup(def_ids: list[int], region: int = 1, limit: int = 3) -> s
     """Look up defence teams for a lineup via the local arena browser service.
 
     Args:
-        def_ids: 1-6 six-digit character ids forming the defence lineup.
+        def_ids: 1-5 six-digit character ids forming the defence lineup.
         region: arena region id, 1 = main.
-        limit: how many teams to summarise, 1-6.
+        limit: how many teams to summarise, 1-6 (display cap, not a game rule).
     """
     return _dump(await arena.arena_lookup(def_ids, region=region, limit=limit))
 
