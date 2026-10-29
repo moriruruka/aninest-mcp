@@ -122,8 +122,8 @@ aninest-mcp/
 - ✅ `python scripts/fake_arena.py` + `ANINEST_ARENA_URL=127.0.0.1:6192 --call arena_lookup` → 返回 2 支假队伍
 - ✅ 干净 venv 安装：`pip install <repo>` → `aninest-mcp`，console script 与 `import aninest` 均正常
 - ✅ 从 GitHub 直装（2026-10-29）：全新 venv + `pip install "git+https://github.com/moriruruka/aninest-mcp.git"`（清华镜像加速）
-  → 装出 `aninest_mcp-0.4.0`，`aninest-mcp.exe` 可启动，握手协商 `protocol=2025-11-25`，10 个工具、`service_health` 5/5
+  → 装出 `aninest_mcp-0.4.1`，`aninest-mcp.exe` 可启动，握手协商 `protocol=2025-11-25`，10 个工具、`service_health` 5/5
 - ✅ Docker 镜像（本机 Docker 29.9.2）：`docker build` 成功（252 MB）→ 以 `uid=10001` 非 root 运行 →
-  `HEALTHCHECK` 转 healthy → `initialize` 返回 `serverInfo.version=0.4.0` → `tools/list` 返回 10 个工具
+  `HEALTHCHECK` 转 healthy → `initialize` 返回 `serverInfo.version=0.4.1` → `tools/list` 返回 10 个工具
 - ℹ️ 构建机器所在网络无法直连 Docker Hub，镜像构建使用了 `--build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-slim`；
   CI 使用默认的 `python:3.12-slim`

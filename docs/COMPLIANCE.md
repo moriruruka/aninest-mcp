@@ -10,7 +10,7 @@
 | 规范项 | 状态 | 证据 |
 | --- | --- | --- |
 | `initialize` 与版本协商 | 已符合 | 握手返回 `protocolVersion = 2025-11-25` |
-| `serverInfo` 的 name / version | 已符合 | `aninest-mcp` / `0.4.0`（`src/aninest/version.py`，并在 `server.py` 里覆盖了 SDK 默认值） |
+| `serverInfo` 的 name / version | 已符合 | `aninest-mcp` / `0.4.1`（`src/aninest/version.py`，并在 `server.py` 里覆盖了 SDK 默认值） |
 | `tools/list` 与 `inputSchema` | 已符合 | 10 个工具，schema 由类型注解 + docstring 生成（`tests/test_server_contract.py` 断言每个工具都带 schema，且与 `server.EXPECTED_TOOLS` 一致） |
 | `tools/call` 的 `isError` 语义 | 已符合 | 业务错误抛 `ToolError` → 客户端收到 `isError: true`；记忆库不存在时实测如此 |
 | `structuredContent` | 已符合 | 每次调用同时给文本 JSON 与结构化结果（`test_server_contract.py` 第二组用例） |

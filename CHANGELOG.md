@@ -2,6 +2,14 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.1] - 2026-10-29
+
+### Fixed
+
+- Python 3.10 下 `from datetime import UTC` 会直接 ImportError（`UTC` 是 3.11 才有的别名），
+  导致 `character_correct` 所在的模块在 3.10 上完全无法导入。改用 `datetime.timezone.utc`。
+  CI 矩阵里的 3.10 两个 job 因此从红转绿。
+
 ## [0.4.0] - 2026-10-29
 
 ### Added

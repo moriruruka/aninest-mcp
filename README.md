@@ -236,7 +236,7 @@ docker build --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-s
 ```
 
 镜像行为已实测（Docker 29.9.2，Linux 容器）：以 `uid=10001` 非 root 运行、`HEALTHCHECK`
-转 healthy、`initialize` 握手返回 `serverInfo.version = 0.4.0`、`tools/list` 返回全部 10 个工具。
+转 healthy、`initialize` 握手返回 `serverInfo.version = 0.4.1`、`tools/list` 返回全部 10 个工具。
 
 ## 看得见的验证：一条命令跑完整段对话
 
@@ -377,7 +377,7 @@ python scripts/mcp_smoke.py --call art_search --args '{"query":"初音未来 泳
 | `ANINEST_MCP_HOST` / `ANINEST_MCP_PORT` | `127.0.0.1` / `8765` | 仅 HTTP/SSE 模式生效 |
 | `ANINEST_BOORU_URL` | `https://safebooru.org/index.php` | 任何 Gelbooru 风格 JSON API |
 | `ANINEST_HTTP_TIMEOUT` | `15` | 秒 |
-| `ANINEST_USER_AGENT` | `aninest-mcp/0.4.0 (+…)` | 图站要求可识别的 UA |
+| `ANINEST_USER_AGENT` | `aninest-mcp/0.4.1 (+…)` | 图站要求可识别的 UA |
 | `ANINEST_ARENA_URL` | `http://127.0.0.1:6191` | 本机浏览器服务（持登录态） |
 | `ANINEST_MEMORY_DB` | `~/.aninest/memory.db` | 只读打开 |
 | `ANINEST_PROBE_HOST` | `127.0.0.1` | 健康探测目标 |
