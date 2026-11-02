@@ -295,6 +295,16 @@ flowchart LR
 - [ ] 整页截图的一体化入口（需要宿主侧的版面适配）
 - [ ] 检索层可插拔（当前是确定性关键词，可选接入向量检索）
 
+## 致谢
+
+作业查询依赖他人维护的公开服务与数据，特此致谢：
+
+- [pcrdfans.com](https://pcrdfans.com)（作者 Peter Li，[@peterli110](https://github.com/peterli110)）——
+  竞技场作业数据、`/battle` 查询页与 `/units` 单位表均来自该站点，本项目仅调用其公开接口与页面，
+  未复制其代码。站点前端源码开源于 [peterli110/pcrdfans.com](https://github.com/peterli110/pcrdfans.com)。
+- [esterTion/redive_master_db_diff](https://github.com/esterTion/redive_master_db_diff)——
+  解包的游戏数据；头像 CDN `redive.estertion.win` 亦由 esterTion 维护。
+
 ## License
 
 [MIT](LICENSE)。
